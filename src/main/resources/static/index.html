@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA-GPT — 산출물 검증</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 16px; color: #222; }
+        h1 { font-size: 22px; }
+        .card { border: 1px solid #e2e2e2; border-radius: 10px; padding: 20px; margin-top: 16px; }
+        button { padding: 8px 16px; border: 0; border-radius: 6px; background: #2d6cdf; color: #fff; cursor: pointer; }
+        button:disabled { background: #9db8ea; }
+        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+        th, td { border: 1px solid #e2e2e2; padding: 8px 10px; font-size: 14px; text-align: left; vertical-align: top; }
+        th { background: #f6f8fb; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+        .badge.개선 { background: #d64545; }
+        .badge.권고 { background: #e0912f; }
+        .ok { color: #1f9d55; font-weight: 600; }
+        .err { color: #d64545; }
+        .muted { color: #888; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>QA-GPT — 산출물 품질 검증 <span class="muted">(S1 워킹 스켈레톤)</span></h1>
+
+    <div class="card">
+        <p>배치Job목록(<code>.xlsx</code>)을 업로드하면 필수컬럼(<code>Job ID</code>·<code>명칭</code>) 존재 여부를 검증합니다.</p>
+        <form id="uploadForm">
+            <input type="file" id="file" name="file" accept=".xlsx" required>
+            <button type="submit" id="submitBtn">검증</button>
+        </form>
+        <p class="muted">API 문서: <a href="/swagger-ui.html">/swagger-ui.html</a></p>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+        <div id="summary"></div>
+        <div id="defects"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        $('#uploadForm').on('submit', function (e) {
+            e.preventDefault();
+            var fileInput = $('#file')[0];
+            if (!fileInput.files.length) { return; }
+
+            var fd = new FormData();
+            fd.append('file', fileInput.files[0]);
+            fd.append('artifactType', 'BATCH_JOB_LIST');
+
+            $('#submitBtn').prop('disabled', true).text('검증 중…');
+            $('#resultCard').show();
+            $('#summary').html('<span class="muted">검증 중…</span>');
+            $('#defects').empty();
+
+            $.ajax({
+                url: '/api/validate',
+                type: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false
+            }).done(function (res) {
+                render(res);
+            }).fail(function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) || '요청 실패';
+                $('#summary').html('<span class="err">오류: ' + escapeHtml(msg) + '</span>');
+            }).always(function () {
+                $('#submitBtn').prop('disabled', false).text('검증');
+            });
+        });
+
+        function render(res) {
+            if (res.passed) {
+                $('#summary').html('<span class="ok">✔ 결함 없음</span>');
+                $('#defects').empty();
+                return;
+            }
+            $('#summary').html('<span class="err">✘ ' + escapeHtml(res.message) + '</span>');
+            var rows = res.defects.map(function (d) {
+                return '<tr>' +
+                    '<td><span class="badge ' + escapeHtml(d.severity) + '">' + escapeHtml(d.severity) + '</span></td>' +
+                    '<td>' + escapeHtml(d.defectType) + '</td>' +
+                    '<td>' + escapeHtml(d.perspective) + '</td>' +
+                    '<td>' + escapeHtml(d.location) + '</td>' +
+                    '<td>' + escapeHtml(d.description) + '</td>' +
+                    '</tr>';
+            }).join('');
+            $('#defects').html(
+                '<table><thead><tr><th>판정</th><th>결함유형</th><th>관점</th><th>근거위치</th><th>내용</th></tr></thead><tbody>' +
+                rows + '</tbody></table>');
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+    </script>
+</body>
+</html>
