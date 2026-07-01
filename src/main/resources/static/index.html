@@ -3,43 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QA-GPT — 산출물 검증</title>
+    <title>QA-GPT — 산출물 품질 검증</title>
     <style>
-        body { font-family: -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 16px; color: #222; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 920px; margin: 40px auto; padding: 0 16px; color: #222; }
         h1 { font-size: 22px; }
+        h2 { font-size: 16px; margin: 0 0 12px; }
         .card { border: 1px solid #e2e2e2; border-radius: 10px; padding: 20px; margin-top: 16px; }
-        button { padding: 8px 16px; border: 0; border-radius: 6px; background: #2d6cdf; color: #fff; cursor: pointer; }
-        button:disabled { background: #9db8ea; }
+        .card.disabled { opacity: .5; pointer-events: none; }
+        label { display: block; font-size: 13px; color: #555; margin: 10px 0 4px; }
+        input, select { padding: 7px 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        input[type=text], select { width: 100%; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+        .dates { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 16px; }
+        button { padding: 8px 16px; border: 0; border-radius: 6px; background: #2d6cdf; color: #fff; cursor: pointer; font-size: 14px; margin-top: 14px; }
+        button:disabled { background: #9db8ea; cursor: default; }
+        button.secondary { background: #6b7280; }
         table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-        th, td { border: 1px solid #e2e2e2; padding: 8px 10px; font-size: 14px; text-align: left; vertical-align: top; }
+        th, td { border: 1px solid #e2e2e2; padding: 8px 10px; font-size: 13px; text-align: left; vertical-align: top; }
         th { background: #f6f8fb; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; white-space: nowrap; }
         .badge.개선 { background: #d64545; }
         .badge.권고 { background: #e0912f; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; background: #eef2fb; color: #2d6cdf; }
         .ok { color: #1f9d55; font-weight: 600; }
-        .err { color: #d64545; }
+        .err { color: #d64545; font-weight: 600; }
         .muted { color: #888; font-size: 13px; }
+        .step { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #2d6cdf; color: #fff; font-size: 13px; margin-right: 8px; }
+        #projInfo { margin-top: 12px; }
     </style>
 </head>
 <body>
     <h1>QA-GPT — 산출물 품질 검증 <span class="muted">(S1 워킹 스켈레톤)</span></h1>
+    <p class="muted">
+        프로젝트 등록 → 산출물 업로드·검증 → 결함 결과 → 회차별 검증 이력.
+        API 문서: <a href="/swagger-ui.html">/swagger-ui.html</a>
+    </p>
 
-    <div class="card">
-        <p>배치Job목록(<code>.xlsx</code>)을 업로드하면 필수컬럼(<code>Job ID</code>·<code>명칭</code>) 존재 여부를 검증합니다.</p>
-        <form id="uploadForm">
-            <input type="file" id="file" name="file" accept=".xlsx" required>
-            <button type="submit" id="submitBtn">검증</button>
-        </form>
-        <p class="muted">API 문서: <a href="/swagger-ui.html">/swagger-ui.html</a></p>
+    <!-- ── 1. 프로젝트 ────────────────────────────────────────── -->
+    <div class="card" id="projectCard">
+        <h2><span class="step">1</span>프로젝트</h2>
+
+        <div class="grid">
+            <div><label>프로젝트명 *</label><input type="text" id="projName" placeholder="투자자문 관리시스템 구축"></div>
+            <div><label>프로젝트코드 *</label><input type="text" id="projCode" placeholder="NBIA"></div>
+        </div>
+
+        <label>단계별 기간 <span class="muted">(선택 — 명명규칙·제개정일자 검증 기준값)</span></label>
+        <div class="dates">
+            <div><span class="muted">관리 시작</span><input type="date" id="mgmtStart"></div>
+            <div><span class="muted">분석 시작</span><input type="date" id="anStart"></div>
+            <div><span class="muted">설계 시작</span><input type="date" id="dsStart"></div>
+            <div><span class="muted">관리 종료</span><input type="date" id="mgmtEnd"></div>
+            <div><span class="muted">분석 종료</span><input type="date" id="anEnd"></div>
+            <div><span class="muted">설계 종료</span><input type="date" id="dsEnd"></div>
+        </div>
+
+        <button id="createProjBtn">프로젝트 등록</button>
+        <button id="loadProjBtn" class="secondary">ID로 불러오기</button>
+        <input type="text" id="loadProjId" placeholder="기존 프로젝트 ID" style="width:150px; margin-left:8px;">
+
+        <div id="projInfo"></div>
     </div>
 
+    <!-- ── 2. 산출물 검증 ─────────────────────────────────────── -->
+    <div class="card disabled" id="uploadCard">
+        <h2><span class="step">2</span>산출물 검증</h2>
+        <p class="muted">
+            산출물 유형을 고르고 <code>.xlsx</code> 파일을 업로드하세요.
+            S1에서는 <b>배치Job목록</b>만 규칙 검증(필수컬럼 등)이 연결돼 있고, 나머지 유형은 S2에서 붙습니다.
+        </p>
+        <form id="uploadForm">
+            <label>산출물 유형</label>
+            <select id="artifactType"></select>
+            <label>파일 (.xlsx)</label>
+            <input type="file" id="file" accept=".xlsx" required>
+            <br>
+            <button type="submit" id="submitBtn">검증</button>
+        </form>
+    </div>
+
+    <!-- ── 3. 검증 결과 ──────────────────────────────────────── -->
     <div class="card" id="resultCard" style="display:none;">
+        <h2><span class="step">3</span>검증 결과</h2>
         <div id="summary"></div>
         <div id="defects"></div>
     </div>
 
+    <!-- ── 4. 검증 이력 ──────────────────────────────────────── -->
+    <div class="card" id="historyCard" style="display:none;">
+        <h2><span class="step">4</span>프로젝트 검증 이력</h2>
+        <div id="history"></div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
+        // ArtifactType enum(도메인) 미러 — [name, 표시라벨, S1검증여부]
+        var ARTIFACT_TYPES = [
+            ['BATCH_JOB_LIST', '배치Job목록', true],
+            ['DOCUMENT_WRITING_GUIDELINE', '문서작성지침서', false],
+            ['TAILORING_RESULT', '테일러링결과서', false],
+            ['REQUIREMENT_TRACEABILITY_MATRIX', '요구사항추적표', false],
+            ['REQUIREMENT_DEFINITION', '요구사항정의서', false],
+            ['PROCESS_DEFINITION', '프로세스정의서', false],
+            ['INTERFACE_DEFINITION', '인터페이스정의서', false],
+            ['UI_LIST', 'UI목록', false],
+            ['PROGRAM_LIST', '프로그램목록', false],
+            ['INTERFACE_DESIGN', '인터페이스설계서', false],
+            ['BATCH_DESIGN', '배치설계서', false]
+        ];
+
+        var currentProject = null; // {id, name, code}
+
+        // ── 유형 드롭다운 채우기 ───────────────────────────────
+        (function fillArtifactTypes() {
+            var opts = ARTIFACT_TYPES.map(function (t) {
+                var suffix = t[2] ? '' : ' (S2 예정)';
+                return '<option value="' + t[0] + '">' + escapeHtml(t[1]) + suffix + '</option>';
+            }).join('');
+            $('#artifactType').html(opts);
+        })();
+
+        // ── 1. 프로젝트 등록 ──────────────────────────────────
+        $('#createProjBtn').on('click', function () {
+            var name = $('#projName').val().trim();
+            var code = $('#projCode').val().trim();
+            if (!name || !code) { alert('프로젝트명과 코드는 필수입니다.'); return; }
+
+            var payload = {
+                name: name,
+                code: code,
+                managementStart: dateOrNull('#mgmtStart'), managementEnd: dateOrNull('#mgmtEnd'),
+                analysisStart: dateOrNull('#anStart'), analysisEnd: dateOrNull('#anEnd'),
+                designStart: dateOrNull('#dsStart'), designEnd: dateOrNull('#dsEnd')
+            };
+
+            setBtn('#createProjBtn', true, '등록 중…');
+            $.ajax({
+                url: '/api/projects', type: 'POST',
+                contentType: 'application/json', data: JSON.stringify(payload)
+            }).done(function (res) {
+                setProject(res);
+            }).fail(function (xhr) {
+                $('#projInfo').html('<span class="err">등록 실패: ' + errMsg(xhr) + '</span>');
+            }).always(function () {
+                setBtn('#createProjBtn', false, '프로젝트 등록');
+            });
+        });
+
+        // ── 1-b. 기존 프로젝트 불러오기 ────────────────────────
+        $('#loadProjBtn').on('click', function () {
+            var id = $('#loadProjId').val().trim();
+            if (!id) { alert('프로젝트 ID를 입력하세요.'); return; }
+            $.ajax({ url: '/api/projects/' + encodeURIComponent(id), type: 'GET' })
+                .done(function (res) { setProject(res); })
+                .fail(function (xhr) {
+                    $('#projInfo').html('<span class="err">불러오기 실패: ' + errMsg(xhr) + '</span>');
+                });
+        });
+
+        function setProject(res) {
+            currentProject = res;
+            $('#projInfo').html(
+                '<span class="pill">등록됨</span> ' +
+                '<b>' + escapeHtml(res.name) + '</b> ' +
+                '<span class="muted">(' + escapeHtml(res.code) + ' · #' + res.id +
+                ' · ' + escapeHtml(res.status || '') + ')</span>');
+            $('#uploadCard').removeClass('disabled');
+            loadHistory();
+        }
+
+        // ── 2. 산출물 업로드·검증 (/api/validate 동기) ─────────
         $('#uploadForm').on('submit', function (e) {
             e.preventDefault();
             var fileInput = $('#file')[0];
@@ -47,50 +180,86 @@
 
             var fd = new FormData();
             fd.append('file', fileInput.files[0]);
-            fd.append('artifactType', 'BATCH_JOB_LIST');
+            fd.append('artifactType', $('#artifactType').val());
+            if (currentProject) { fd.append('projectId', currentProject.id); }
 
-            $('#submitBtn').prop('disabled', true).text('검증 중…');
+            setBtn('#submitBtn', true, '검증 중…');
             $('#resultCard').show();
             $('#summary').html('<span class="muted">검증 중…</span>');
             $('#defects').empty();
 
             $.ajax({
-                url: '/api/validate',
-                type: 'POST',
-                data: fd,
-                processData: false,
-                contentType: false
+                url: '/api/validate', type: 'POST', data: fd,
+                processData: false, contentType: false
             }).done(function (res) {
-                render(res);
+                renderResult(res);
+                loadHistory();
             }).fail(function (xhr) {
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) || '요청 실패';
-                $('#summary').html('<span class="err">오류: ' + escapeHtml(msg) + '</span>');
+                $('#summary').html('<span class="err">오류: ' + errMsg(xhr) + '</span>');
             }).always(function () {
-                $('#submitBtn').prop('disabled', false).text('검증');
+                setBtn('#submitBtn', false, '검증');
             });
         });
 
-        function render(res) {
+        function renderResult(res) {
             if (res.passed) {
-                $('#summary').html('<span class="ok">✔ 결함 없음</span>');
+                $('#summary').html('<span class="ok">✔ 결함 없음</span> ' +
+                    '<span class="muted">(검토 #' + res.reviewId + ')</span>');
                 $('#defects').empty();
                 return;
             }
-            $('#summary').html('<span class="err">✘ ' + escapeHtml(res.message) + '</span>');
-            var rows = res.defects.map(function (d) {
+            $('#summary').html('<span class="err">✘ ' + escapeHtml(res.message) + '</span> ' +
+                '<span class="muted">(검토 #' + res.reviewId + ')</span>');
+            var rows = (res.defects || []).map(function (d) {
                 return '<tr>' +
                     '<td><span class="badge ' + escapeHtml(d.severity) + '">' + escapeHtml(d.severity) + '</span></td>' +
                     '<td>' + escapeHtml(d.defectType) + '</td>' +
                     '<td>' + escapeHtml(d.perspective) + '</td>' +
                     '<td>' + escapeHtml(d.location) + '</td>' +
                     '<td>' + escapeHtml(d.description) + '</td>' +
+                    '<td>' + escapeHtml(d.improvementGuide) + '</td>' +
                     '</tr>';
             }).join('');
             $('#defects').html(
-                '<table><thead><tr><th>판정</th><th>결함유형</th><th>관점</th><th>근거위치</th><th>내용</th></tr></thead><tbody>' +
+                '<table><thead><tr><th>판정</th><th>결함유형</th><th>관점</th>' +
+                '<th>근거위치</th><th>내용</th><th>개선방향</th></tr></thead><tbody>' +
                 rows + '</tbody></table>');
         }
 
+        // ── 4. 검증 이력 (/api/projects/{id}/status) ───────────
+        function loadHistory() {
+            if (!currentProject) { return; }
+            $.ajax({ url: '/api/projects/' + currentProject.id + '/status', type: 'GET' })
+                .done(function (list) {
+                    $('#historyCard').show();
+                    if (!list || !list.length) {
+                        $('#history').html('<span class="muted">아직 검증 이력이 없습니다.</span>');
+                        return;
+                    }
+                    var rows = list.map(function (r) {
+                        var verdict = r.passed
+                            ? '<span class="ok">통과</span>'
+                            : '<span class="err">미통과</span>';
+                        return '<tr>' +
+                            '<td>#' + r.reviewId + '</td>' +
+                            '<td>' + (r.round == null ? '-' : r.round) + '회차</td>' +
+                            '<td>' + escapeHtml(r.status) + '</td>' +
+                            '<td>' + verdict + '</td>' +
+                            '<td>' + r.defectCount + '건</td>' +
+                            '</tr>';
+                    }).join('');
+                    $('#history').html(
+                        '<table><thead><tr><th>검토ID</th><th>회차</th><th>상태</th>' +
+                        '<th>판정</th><th>결함수</th></tr></thead><tbody>' + rows + '</tbody></table>');
+                });
+        }
+
+        // ── 유틸 ──────────────────────────────────────────────
+        function dateOrNull(sel) { var v = $(sel).val(); return v ? v : null; }
+        function setBtn(sel, disabled, text) { $(sel).prop('disabled', disabled).text(text); }
+        function errMsg(xhr) {
+            return escapeHtml((xhr.responseJSON && xhr.responseJSON.message) || '요청 실패');
+        }
         function escapeHtml(s) {
             return String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
