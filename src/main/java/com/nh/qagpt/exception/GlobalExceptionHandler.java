@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.NOT_IMPLEMENTED, e.getMessage());
     }
 
+    /** 파싱 실패 등 잘못된 입력 (S1: 업로드 파일 파싱 실패 시 사용자 메시지). */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleBadInput(IllegalArgumentException e) {
+        return body(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
         return body(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
