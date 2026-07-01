@@ -11,7 +11,8 @@ import lombok.Setter;
 
 /**
  * 산출물별 체크리스트 항목. docs/checklists/ 12종을 DB로 적재해 checklist 엔진이 적용한다 (spec §5).
- * phase는 4-Phase 검증 실행 순서(1~4)를 가리킨다.
+ * phase는 4-Phase 검증 실행 순서(1~4). 체크리스트에 항목별 phase가 명시돼 있지 않아
+ * 시더 적재 시점에는 0(미지정)이며, 판정 엔진(S2/S3)이 배정한다.
  */
 @Entity
 @Table(name = "checklist_item")
@@ -39,7 +40,9 @@ public class ChecklistItem {
     private Perspective perspective;
 
     private String category;   // 파일/표지/개정/본문/일관성 등
-    private String itemKey;    // 고유 키
+
+    @Column(unique = true)
+    private String itemKey;    // 고유 키 (<체크리스트키>-NN)
 
     @Column(columnDefinition = "text")
     private String description; // 검사 내용
