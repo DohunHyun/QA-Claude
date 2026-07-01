@@ -47,6 +47,15 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// 체크리스트 원본(docs/checklists/*.md)을 런타임 클래스패스(checklists/)로 번들한다.
+// 단일 원본은 docs/ 에 유지하고, 여기서는 복사만 해서 앱(jar)이 자체 포함되게 한다.
+tasks.processResources {
+    from("$rootDir/docs/checklists") {
+        include("*.md")
+        into("checklists")
+    }
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 }
