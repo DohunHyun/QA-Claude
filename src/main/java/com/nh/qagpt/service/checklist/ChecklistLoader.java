@@ -15,8 +15,9 @@ import java.util.List;
  * <ul>
  *   <li>{@code ## N. 섹션명}  → category (선두 "N." 제거)</li>
  *   <li>{@code ### [개선]/[권고] 항목명} → 검사항목 1건 (severity + description)</li>
- *   <li>항목 하위 {@code - 불릿} → ruleHint (여러 줄이면 개행으로 합침)</li>
- *   <li>판정어휘([개선]/[권고]) 없는 {@code ###}, 표·일반 문단(요약 표 등)은 무시</li>
+ *   <li>항목 아래의 본문(불릿·표 행·문단 등 비어있지 않은 줄)은 모두 ruleHint로 수집.
+ *       필수컬럼 명세처럼 표로만 기술된 항목도 규칙을 놓치지 않는다. 빈 줄·수평선(---)은 제외</li>
+ *   <li>판정어휘([개선]/[권고]) 없는 {@code ###}, 항목 밖(요약 표 등)의 내용은 무시</li>
  * </ul>
  *
  * phase·defectType·perspective 는 체크리스트에 항목별로 명시돼 있지 않으므로 비워둔다.
@@ -26,7 +27,7 @@ import java.util.List;
 public class ChecklistLoader {
 
     public List<ChecklistItem> parse(String markdown, String fileBaseName) {
-        ArtifactType artifactType = artifactTypeOf(fileBaseName);
+        ArtifactType artifactType = ArtifactType.fromChecklistKey(fileBaseName);
         List<ChecklistItem> items = new ArrayList<>();
 
         String currentCategory = null;
@@ -38,7 +39,8 @@ public class ChecklistLoader {
             String line = raw.strip();
 
             if (line.startsWith("### ")) {
-                current = flush(items, current, hint);        // 직전 항목 마감
+                commit(items, current, hint);                 // 직전 항목 마감
+                current = null;
                 String heading = line.substring(4).strip();
                 Severity severity = severityOf(heading);
                 if (severity == null) {                       // 판정어휘 없는 ### 는 검사항목 아님
@@ -52,39 +54,34 @@ public class ChecklistLoader {
                 current.setItemKey(fileBaseName + "-" + String.format("%02d", ++seq));
                 hint.setLength(0);
             } else if (line.startsWith("## ")) {
-                current = flush(items, current, hint);        // 섹션 경계에서 직전 항목 마감
+                commit(items, current, hint);                 // 섹션 경계에서 직전 항목 마감
+                current = null;
                 currentCategory = stripSectionNumber(line.substring(3).strip());
-            } else if (current != null && line.startsWith("- ")) {
+            } else if (current != null && isRuleContent(line)) {
                 if (hint.length() > 0) {
                     hint.append('\n');
                 }
-                hint.append(line.substring(2).strip());
+                hint.append(line);                            // 불릿·표 행·문단 원문 유지
             }
         }
-        flush(items, current, hint);
+        commit(items, current, hint);
         return items;
     }
 
-    /** 진행 중이던 항목이 있으면 ruleHint를 확정해 목록에 추가하고 null 반환. */
-    private ChecklistItem flush(List<ChecklistItem> items, ChecklistItem current, StringBuilder hint) {
+    /** 진행 중이던 항목이 있으면 수집한 ruleHint를 확정해 목록에 추가한다. */
+    private void commit(List<ChecklistItem> items, ChecklistItem current, StringBuilder hint) {
         if (current == null) {
-            return null;
+            return;
         }
         if (hint.length() > 0) {
             current.setRuleHint(hint.toString());
         }
         items.add(current);
-        return null;
     }
 
-    /** 파일명(확장자 제외) 이 대응하는 ArtifactType. 교차정합성 등 매핑 없는 체크리스트는 null. */
-    private ArtifactType artifactTypeOf(String fileBaseName) {
-        for (ArtifactType type : ArtifactType.values()) {
-            if (fileBaseName.equals(type.getChecklistKey())) {
-                return type;
-            }
-        }
-        return null;
+    // ruleHint에 담을 본문 줄인가. 빈 줄과 수평선(--- 등)은 제외.
+    private boolean isRuleContent(String line) {
+        return !line.isBlank() && !line.matches("^[-*_]{3,}$");
     }
 
     private Severity severityOf(String heading) {

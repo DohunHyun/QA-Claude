@@ -31,4 +31,20 @@ public enum ArtifactType {
     public Stage getStage() { return stage; }
     public String getLabel() { return label; }
     public String getChecklistKey() { return checklistKey; }
+
+    /**
+     * 체크리스트 파일 키(docs/checklists/{key}.md) → 대응 산출물 유형.
+     * 매핑되는 유형이 없으면 null (교차정합성 등 유형에 속하지 않는 체크리스트).
+     */
+    public static ArtifactType fromChecklistKey(String checklistKey) {
+        if (checklistKey == null) {
+            return null;
+        }
+        for (ArtifactType type : values()) {
+            if (checklistKey.equals(type.checklistKey)) {
+                return type;
+            }
+        }
+        return null;
+    }
 }

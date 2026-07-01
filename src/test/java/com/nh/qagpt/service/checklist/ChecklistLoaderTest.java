@@ -36,7 +36,7 @@ class ChecklistLoaderTest {
 
         List<ChecklistItem> items = loader.parse(md, "checklist_batch_job_list");
 
-        // 요약 표는 항목이 아니므로 검사항목은 2건만
+        // 요약 표는 항목(###) 밖이라 검사항목은 2건만
         assertThat(items).hasSize(2);
 
         ChecklistItem first = items.get(0);
@@ -51,6 +51,28 @@ class ChecklistLoaderTest {
         assertThat(second.getSeverity()).isEqualTo(Severity.RECOMMENDATION);
         assertThat(second.getDescription()).isEqualTo("권장 표기");
         assertThat(second.getItemKey()).isEqualTo("checklist_batch_job_list-02");
+    }
+
+    @Test
+    void 표로만_기술된_항목도_ruleHint에_표_내용을_담는다() {
+        String md = """
+                ## 3. 본문 검증
+
+                ### [개선] 필수 컬럼 존재 여부
+
+                | # | 컬럼명 | 필수 |
+                |---|--------|------|
+                | 1 | 배치Job ID | ✓ |
+                | 2 | 업무명 | ✓ |
+                """;
+
+        List<ChecklistItem> items = loader.parse(md, "checklist_batch_job_list");
+
+        assertThat(items).hasSize(1);
+        ChecklistItem cols = items.get(0);
+        assertThat(cols.getDescription()).isEqualTo("필수 컬럼 존재 여부");
+        // 불릿이 없어도 표 본문이 규칙 힌트로 수집돼야 한다(핵심 컬럼 목록 유실 방지)
+        assertThat(cols.getRuleHint()).contains("배치Job ID").contains("업무명");
     }
 
     @Test
