@@ -169,6 +169,10 @@
                 '<span class="muted">(' + escapeHtml(res.code) + ' · #' + res.id +
                 ' · ' + escapeHtml(res.status || '') + ')</span>');
             $('#uploadCard').removeClass('disabled');
+            // 프로젝트 전환 시 이전 프로젝트의 검증 결과가 잘못 귀속되지 않도록 초기화
+            $('#resultCard').hide();
+            $('#summary').empty();
+            $('#defects').empty();
             loadHistory();
         }
 
@@ -237,9 +241,12 @@
                         return;
                     }
                     var rows = list.map(function (r) {
-                        var verdict = r.passed
-                            ? '<span class="ok">통과</span>'
-                            : '<span class="err">미통과</span>';
+                        // 판정은 검토 완료(COMPLETED) 시에만 표시 — 진행 중 회차를 '미통과'로 오표기하지 않도록
+                        var verdict = r.status !== 'COMPLETED'
+                            ? '<span class="muted">-</span>'
+                            : (r.passed
+                                ? '<span class="ok">통과</span>'
+                                : '<span class="err">미통과</span>');
                         return '<tr>' +
                             '<td>#' + r.reviewId + '</td>' +
                             '<td>' + (r.round == null ? '-' : r.round) + '회차</td>' +
@@ -251,6 +258,10 @@
                     $('#history').html(
                         '<table><thead><tr><th>검토ID</th><th>회차</th><th>상태</th>' +
                         '<th>판정</th><th>결함수</th></tr></thead><tbody>' + rows + '</tbody></table>');
+                })
+                .fail(function (xhr) {
+                    $('#historyCard').show();
+                    $('#history').html('<span class="err">이력 조회 실패: ' + errMsg(xhr) + '</span>');
                 });
         }
 
@@ -262,7 +273,8 @@
         }
         function escapeHtml(s) {
             return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;'); // 속성 컨텍스트 삽입까지 안전하게
         }
     </script>
 </body>
