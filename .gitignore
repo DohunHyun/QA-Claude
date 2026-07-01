@@ -1,0 +1,38 @@
+# ===== Java / Gradle =====
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+bin/
+out/
+
+# ===== Spring Boot =====
+*.log
+application-local.yml
+application-local.properties
+
+# ===== 환경 변수 / 시크릿 =====
+.env
+.env.local
+*.key
+secrets.properties
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== 아카이브 =====
+*.zip
+
+# ===== 업로드/생성 산출물 (런타임) =====
+/uploads/
+/generated/
+/tmp/
