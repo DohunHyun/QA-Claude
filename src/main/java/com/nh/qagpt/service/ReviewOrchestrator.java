@@ -61,7 +61,6 @@ public class ReviewOrchestrator {
         ReviewResult result = new ReviewResult();
         result.setDocument(document);
         result.setProject(document.getProject());
-        result.setRound(1);
 
         try {
             ParsedDocument parsed = parserRouter.parse(content, document.getFileName(), document.getContentType());
@@ -72,6 +71,7 @@ public class ReviewOrchestrator {
             document.setArtifactType(type);
             document.setStage(type.getStage());
             result.setStage(type.getStage());
+            result.setRound(nextRound(document.getProject(), type)); // [S6] 재검증 시 회차 증가
 
             List<Defect> defects = new ArrayList<>(checklistEngine.apply(parsed, type, document.getProject()));
             defects.addAll(llmEvaluator.evaluate(parsed, type));
@@ -87,6 +87,14 @@ public class ReviewOrchestrator {
         }
 
         return reviewResultRepository.save(result);
+    }
+
+    /** [S6] 같은 프로젝트·유형의 이전 회차 다음 번호. 프로젝트 미지정이면 1회차. */
+    private int nextRound(com.nh.qagpt.domain.Project project, ArtifactType type) {
+        if (project == null || project.getId() == null || type == null) {
+            return 1;
+        }
+        return reviewResultRepository.maxRoundForArtifact(project.getId(), type) + 1;
     }
 
     /** TODO(S2+): 비동기 전체 파이프라인 — 저장된 파일을 id로 로드해 classify+checklist+generate 실행. */
