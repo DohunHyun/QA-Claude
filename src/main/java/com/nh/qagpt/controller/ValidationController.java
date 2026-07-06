@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * [S1] 워킹 스켈레톤: 산출물 업로드 → 파싱 → 최소 검증 → 결함 목록 반환 (동기).
- * projectId·artifactType은 선택 — 미지정 시 배치Job목록으로 검증.
+ * [S2] 산출물 업로드 → 파싱 → (유형 자동 인식) → 규칙검증 + LLM 판정 → 결함 목록 반환 (동기).
+ * projectId·artifactType은 선택 — artifactType 미지정 시 파일명/구조로 유형을 자동 인식한다.
  */
 @RestController
 @RequestMapping("/api")
@@ -38,7 +38,7 @@ public class ValidationController {
     @PostMapping(value = "/validate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ValidationResultResponse validate(
             @RequestParam(required = false) Long projectId,
-            @RequestParam(value = "artifactType", defaultValue = "BATCH_JOB_LIST") ArtifactType artifactType,
+            @RequestParam(value = "artifactType", required = false) ArtifactType artifactType,
             @RequestParam("file") MultipartFile file) throws IOException {
 
         Document doc = new Document();
@@ -47,14 +47,25 @@ public class ValidationController {
         }
         doc.setFileName(file.getOriginalFilename());
         doc.setContentType(file.getContentType());
-        doc.setArtifactType(artifactType);
-        doc.setStage(artifactType.getStage());
+        if (artifactType != null) {
+            doc.setArtifactType(artifactType);
+            doc.setStage(artifactType.getStage());
+        }
         Document saved = documentRepository.save(doc);
 
+        // artifactType 미지정 시 orchestrator가 자동 인식하여 doc에 채운다.
         ReviewResult result = orchestrator.runReview(saved, file.getBytes(), artifactType);
 
+        ArtifactType detected = saved.getArtifactType();
         List<DefectDto> defects = result.getDefects().stream().map(DefectDto::from).toList();
         String message = result.isPassed() ? "결함 없음" : (defects.size() + "건의 결함이 발견되었습니다.");
-        return new ValidationResultResponse(result.getId(), result.isPassed(), defects.size(), message, defects);
+        return new ValidationResultResponse(
+                result.getId(),
+                detected == null ? null : detected.name(),
+                detected == null ? null : detected.getLabel(),
+                result.isPassed(),
+                defects.size(),
+                message,
+                defects);
     }
 }

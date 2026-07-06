@@ -28,6 +28,11 @@ public class ClaudeClientImpl implements ClaudeClient {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return complete(systemPrompt, userPrompt, props.getTemperature());
+    }
+
+    @Override
+    public String complete(String systemPrompt, String userPrompt, double temperature) {
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
             throw new IllegalStateException("CLAUDE_API_KEY 미설정 — 환경변수를 설정하세요.");
         }
@@ -35,6 +40,7 @@ public class ClaudeClientImpl implements ClaudeClient {
         Map<String, Object> body = new HashMap<>();
         body.put("model", props.getModel());
         body.put("max_tokens", props.getMaxTokens());
+        body.put("temperature", temperature);
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             body.put("system", systemPrompt);
         }

@@ -8,6 +8,7 @@ import com.nh.qagpt.domain.enums.ReviewStatus;
 import com.nh.qagpt.domain.enums.Severity;
 import com.nh.qagpt.repository.ReviewResultRepository;
 import com.nh.qagpt.service.checklist.ChecklistEngine;
+import com.nh.qagpt.service.checklist.LlmChecklistEvaluator;
 import com.nh.qagpt.service.classifier.DocumentClassifier;
 import com.nh.qagpt.service.generator.ResultGenerator;
 import com.nh.qagpt.service.parser.DocumentParserRouter;
@@ -15,6 +16,7 @@ import com.nh.qagpt.service.parser.ParsedDocument;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -23,8 +25,9 @@ import java.util.concurrent.CompletableFuture;
  *
  * 4-Phase 고정 흐름 (spec §7.2 / PRD): parse → classify → checklist(4-Phase) → generate.
  *
- * [S1] {@link #runReview}: 동기 경로 — parse → checklist(최소검증) → 저장. 데모용으로 즉시 결과 반환.
- * TODO(S2+): classify(유형 자동인식) + generate(3종 결과물) + {@link #review} 비동기(파일 저장 후 id로 실행).
+ * [S1] {@link #runReview}: 동기 경로 — parse → (classify) → checklist(규칙) + LLM 판정 → 저장.
+ * [S2] 유형 자동 인식 + LLM 판정 태깅 결합. API 키 미설정 시 규칙검증만 동작(우아한 저하).
+ * TODO(S3+): generate(3종 결과물) + {@link #review} 비동기(파일 저장 후 id로 실행).
  */
 @Service
 public class ReviewOrchestrator {
@@ -32,35 +35,46 @@ public class ReviewOrchestrator {
     private final DocumentParserRouter parserRouter;
     private final DocumentClassifier classifier;
     private final ChecklistEngine checklistEngine;
+    private final LlmChecklistEvaluator llmEvaluator;
     private final ResultGenerator resultGenerator;
     private final ReviewResultRepository reviewResultRepository;
 
     public ReviewOrchestrator(DocumentParserRouter parserRouter,
                               DocumentClassifier classifier,
                               ChecklistEngine checklistEngine,
+                              LlmChecklistEvaluator llmEvaluator,
                               ResultGenerator resultGenerator,
                               ReviewResultRepository reviewResultRepository) {
         this.parserRouter = parserRouter;
         this.classifier = classifier;
         this.checklistEngine = checklistEngine;
+        this.llmEvaluator = llmEvaluator;
         this.resultGenerator = resultGenerator;
         this.reviewResultRepository = reviewResultRepository;
     }
 
     /**
-     * [S1] 동기 검토: 업로드 즉시 파싱·검증하고 결과를 저장·반환한다.
-     * 유형은 파라미터로 받는다(S2에서 classifier.classify()로 대체).
+     * [S2] 동기 검토: 파싱 → 유형 확정(요청값 없으면 자동 인식) → 규칙검증 + LLM 판정 병합 → 저장.
+     * @param requestedType 사용자가 지정한 유형(널/UNKNOWN이면 자동 인식)
      */
-    public ReviewResult runReview(Document document, byte[] content, ArtifactType type) {
+    public ReviewResult runReview(Document document, byte[] content, ArtifactType requestedType) {
         ReviewResult result = new ReviewResult();
         result.setDocument(document);
         result.setProject(document.getProject());
-        result.setStage(type.getStage());
         result.setRound(1);
 
         try {
             ParsedDocument parsed = parserRouter.parse(content, document.getFileName(), document.getContentType());
-            List<Defect> defects = checklistEngine.apply(parsed, type, document.getProject());
+
+            ArtifactType type = (requestedType == null || requestedType == ArtifactType.UNKNOWN)
+                    ? classifier.classify(parsed)
+                    : requestedType;
+            document.setArtifactType(type);
+            document.setStage(type.getStage());
+            result.setStage(type.getStage());
+
+            List<Defect> defects = new ArrayList<>(checklistEngine.apply(parsed, type, document.getProject()));
+            defects.addAll(llmEvaluator.evaluate(parsed, type));
             defects.forEach(result::addDefect);
 
             boolean hasImprovement = defects.stream()
