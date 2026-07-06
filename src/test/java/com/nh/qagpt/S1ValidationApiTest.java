@@ -32,7 +32,7 @@ class S1ValidationApiTest {
     @Test
     void 정상_배치Job목록_업로드시_결함없음() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "batch.xlsx", XLSX_MIME,
-                workbook(List.of("단위업무명", "Job ID", "명칭"), List.of("여신", "JOB001", "일일정산배치")));
+                workbook(List.of("단위업무명", "배치Job ID", "업무명"), List.of("여신", "BJ-DE-0001", "일일정산배치")));
 
         mvc.perform(multipart("/api/validate").file(file).param("artifactType", "BATCH_JOB_LIST"))
                 .andExpect(status().isOk())
@@ -42,9 +42,9 @@ class S1ValidationApiTest {
     }
 
     @Test
-    void 명칭컬럼_누락_업로드시_개선결함1건() throws Exception {
+    void 단위업무명컬럼_누락_업로드시_개선결함1건() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "batch.xlsx", XLSX_MIME,
-                workbook(List.of("단위업무명", "Job ID"), List.of("여신", "JOB001")));
+                workbook(List.of("배치Job ID", "업무명"), List.of("BJ-DE-0001", "일일정산배치")));
 
         mvc.perform(multipart("/api/validate").file(file).param("artifactType", "BATCH_JOB_LIST"))
                 .andExpect(status().isOk())
@@ -52,7 +52,7 @@ class S1ValidationApiTest {
                 .andExpect(jsonPath("$.defectCount").value(1))
                 .andExpect(jsonPath("$.defects[0].severity").value("개선"))
                 .andExpect(jsonPath("$.defects[0].defectType").value("필수항목누락"))
-                .andExpect(jsonPath("$.defects[0].location", containsString("명칭")));
+                .andExpect(jsonPath("$.defects[0].location", containsString("단위업무명")));
     }
 
     @Test
