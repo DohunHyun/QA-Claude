@@ -44,6 +44,8 @@ public class ReviewResult {
 
     private boolean qaException;  // QA 예외 승인으로 통과 처리되었는지
 
+    private boolean qaApproved;   // [S7] QA 승인 완료(검토결과서 발급 가능 조건)
+
     @OneToMany(mappedBy = "reviewResult", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Defect> defects = new ArrayList<>();
 

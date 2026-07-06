@@ -2,6 +2,7 @@ package com.nh.qagpt.controller;
 
 import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.dto.ReviewResponse;
+import com.nh.qagpt.exception.QaApprovalException;
 import com.nh.qagpt.exception.ResourceNotFoundException;
 import com.nh.qagpt.repository.DefectRepository;
 import com.nh.qagpt.repository.ReviewResultRepository;
@@ -84,6 +85,49 @@ public class ReviewController {
 
         String base = file.getOriginalFilename() == null ? "artifact.xlsx" : file.getOriginalFilename();
         return xlsxResponse(improved, "개선_" + base);
+    }
+
+    /**
+     * [S7] QA 승인. 개선 잔존(passed=false)인데 exception=false면 예외 승인 경로를 요구(409).
+     * exception=true면 QA 예외 승인으로 통과 처리.
+     */
+    @PostMapping("/{id}/approve")
+    public Map<String, Object> approve(@PathVariable Long id,
+                                       @RequestParam(defaultValue = "false") boolean exception) {
+        ReviewResult result = reviewResultRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+
+        if (!result.isPassed() && !exception) {
+            throw new QaApprovalException(
+                    "개선 항목이 잔존합니다. QA 예외 승인이 필요합니다(exception=true).");
+        }
+        result.setQaApproved(true);
+        result.setQaException(exception);
+        reviewResultRepository.save(result);
+        return Map.of(
+                "reviewId", id,
+                "qaApproved", true,
+                "qaException", exception,
+                "message", exception ? "QA 예외 승인 완료" : "QA 승인 완료");
+    }
+
+    /** [S7] 단계말 검토결과서(.hwpx) 다운로드. QA 승인(qaApproved) 이후에만 발급된다. */
+    @GetMapping("/{id}/review-report")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadReviewReport(@PathVariable Long id) {
+        ReviewResult result = reviewResultRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+        if (!result.isQaApproved()) {
+            throw new QaApprovalException("QA 승인 후 검토결과서를 발급할 수 있습니다.");
+        }
+        byte[] hwpx = resultGenerator.generateReviewReport(result);
+
+        String filename = "단계말검토결과서_" + id + ".hwpx";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType("application/hwp+zip"))
+                .body(new ByteArrayResource(hwpx));
     }
 
     private ResponseEntity<Resource> xlsxResponse(byte[] bytes, String filename) {

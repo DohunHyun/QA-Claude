@@ -42,6 +42,12 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
     }
 
+    /** [S7] QA 승인 절차 위반 — 승인 전 발급/예외 승인 누락. */
+    @ExceptionHandler(QaApprovalException.class)
+    public ResponseEntity<Map<String, Object>> handleApproval(QaApprovalException e) {
+        return body(HttpStatus.CONFLICT, e.getMessage());
+    }
+
     private ResponseEntity<Map<String, Object>> body(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status", status.value(),
