@@ -1,7 +1,6 @@
 package com.nh.qagpt.service.generator;
 
 import com.nh.qagpt.domain.ReviewResult;
-import com.nh.qagpt.service.parser.ParsedDocument;
 
 /**
  * 결과물 품질의 핵심 시임. 3종 결과물을 생성한다.
@@ -9,8 +8,13 @@ import com.nh.qagpt.service.parser.ParsedDocument;
  */
 public interface ResultGenerator {
 
-    /** ① AI 개선 산출물 — 결함 수정 + [개선] 태그, 원본 포맷 유지. */
-    byte[] generateImprovedArtifact(ReviewResult result, ParsedDocument original);
+    /**
+     * ① AI 개선 산출물 — 개선(ERROR) 항목 위치에 {@code [개선]} 태그를 달아 변경 지점을 명시한다.
+     * 원본 포맷(바이트)을 그대로 열어 구조를 유지하며, 빈 항목은 임의로 채우지 않는다(spec §4.6).
+     * @param originalContent 검증했던 원본 파일 바이트 (포맷 유지를 위해 정규화 표현이 아닌 원본 사용)
+     * @param fileName        포맷 판별용 원본 파일명
+     */
+    byte[] generateImprovedArtifact(ReviewResult result, byte[] originalContent, String fileName);
 
     /** ② 시정조치관리대장 — Excel, 표지·개정이력·시정조치서 3시트(본문 17열). */
     byte[] generateCorrectiveActionLedger(ReviewResult result);
