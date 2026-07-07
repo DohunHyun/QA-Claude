@@ -8,15 +8,19 @@ import com.nh.qagpt.domain.enums.ArtifactType;
 import com.nh.qagpt.domain.enums.Perspective;
 import com.nh.qagpt.domain.enums.Severity;
 import com.nh.qagpt.domain.enums.Stage;
-import com.nh.qagpt.service.parser.ParsedDocument;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.Comment;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -46,9 +50,144 @@ public class ResultGeneratorImpl implements ResultGenerator {
     };
 
     @Override
-    public byte[] generateImprovedArtifact(ReviewResult result, ParsedDocument original) {
-        // TODO(S5): 원본 구조 유지한 채 개선(ERROR) 항목 수정 + [개선] 태그 삽입 (Apache POI / HWPX 파서).
-        throw new UnsupportedOperationException("TODO(S5): AI 개선 산출물 생성");
+    public byte[] generateImprovedArtifact(ReviewResult result, byte[] originalContent, String fileName) {
+        String name = fileName == null ? "" : fileName.toLowerCase();
+        if (!name.endsWith(".xlsx")) {
+            // 원본 포맷 유지 원칙상 임의 변환 금지 — 현재 Excel(.xlsx)만 지원.
+            throw new UnsupportedOperationException(
+                    "개선 산출물 생성은 현재 Excel(.xlsx)만 지원합니다: " + fileName);
+        }
+        try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(originalContent));
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            for (Defect d : result.getDefects()) {
+                // 개선(ERROR) 항목만 변경 지점으로 표시 (권고는 개선본 미반영).
+                if (d.getSeverity() != Severity.IMPROVEMENT) {
+                    continue;
+                }
+                annotate(wb, d);
+            }
+
+            wb.write(out);
+            return out.toByteArray();
+        } catch (UnsupportedOperationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("개선 산출물 생성 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** 결함 위치 셀에 [개선] 태그 코멘트를 단다. 셀 값은 바꾸지 않아 구조·빈 항목을 그대로 유지한다. */
+    private void annotate(Workbook wb, Defect d) {
+        Sheet sheet = resolveSheet(wb, d.getLocationSheet());
+        if (sheet == null) {
+            return;
+        }
+        int[] rc = resolveCell(sheet, d);
+        Row row = sheet.getRow(rc[0]);
+        if (row == null) {
+            row = sheet.createRow(rc[0]);
+        }
+        Cell cell = row.getCell(rc[1], Row.MissingCellPolicy.CREATE_NULL_AS_BLANK); // 값 미기입, 코멘트만
+        String tag = "[개선] " + nullToEmpty(d.getDescription());
+        if (d.getImprovementGuide() != null && !d.getImprovementGuide().isBlank()) {
+            tag += "\n→ " + d.getImprovementGuide();
+        }
+        addOrAppendComment(wb, sheet, cell, rc[0], rc[1], tag);
+    }
+
+    private Sheet resolveSheet(Workbook wb, String sheetName) {
+        if (sheetName != null && !sheetName.isBlank()) {
+            Sheet exact = wb.getSheet(sheetName);
+            if (exact != null) {
+                return exact;
+            }
+            for (int i = 0; i < wb.getNumberOfSheets(); i++) {
+                if (wb.getSheetName(i).contains(sheetName) || sheetName.contains(wb.getSheetName(i))) {
+                    return wb.getSheetAt(i);
+                }
+            }
+        }
+        return wb.getNumberOfSheets() > 0 ? wb.getSheetAt(0) : null;
+    }
+
+    /** 위치 해석: 행 번호가 있으면 그 행, 없으면 컬럼명이 있는 헤더 셀, 둘 다 없으면 A1. */
+    private int[] resolveCell(Sheet sheet, Defect d) {
+        Integer rowIdx = parseRow(d.getLocationRow());
+        String col = d.getLocationColumn();
+        if (col != null && !col.isBlank()) {
+            int headerRow = findHeaderRowContaining(sheet, col);
+            if (headerRow >= 0) {
+                int colIdx = findColumnIndex(sheet.getRow(headerRow), col);
+                int r = rowIdx != null ? rowIdx : headerRow;
+                return new int[]{r, Math.max(colIdx, 0)};
+            }
+        }
+        return new int[]{rowIdx != null ? rowIdx : 0, 0};
+    }
+
+    private Integer parseRow(String s) {
+        if (s == null) {
+            return null;
+        }
+        String digits = s.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private int findHeaderRowContaining(Sheet sheet, String col) {
+        String target = col.replaceAll("\\s+", "");
+        int limit = Math.min(sheet.getLastRowNum(), 10);
+        for (int r = sheet.getFirstRowNum(); r <= limit; r++) {
+            Row row = sheet.getRow(r);
+            if (row != null && findColumnIndex(row, col) >= 0) {
+                return r;
+            }
+        }
+        return -1;
+    }
+
+    private int findColumnIndex(Row row, String col) {
+        if (row == null) {
+            return -1;
+        }
+        String target = col.replaceAll("\\s+", "");
+        for (int c = 0; c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                String v = cell.getStringCellValue().replaceAll("\\s+", "");
+                if (v.equals(target) || v.contains(target)) {
+                    return c;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private void addOrAppendComment(Workbook wb, Sheet sheet, Cell cell, int rowIdx, int colIdx, String text) {
+        CreationHelper factory = wb.getCreationHelper();
+        Comment existing = cell.getCellComment();
+        if (existing != null) {
+            String prev = existing.getString() == null ? "" : existing.getString().getString();
+            existing.setString(factory.createRichTextString(prev + "\n" + text));
+            return;
+        }
+        Drawing<?> drawing = sheet.createDrawingPatriarch();
+        ClientAnchor anchor = factory.createClientAnchor();
+        anchor.setCol1(colIdx);
+        anchor.setCol2(colIdx + 3);
+        anchor.setRow1(rowIdx);
+        anchor.setRow2(rowIdx + 4);
+        Comment comment = drawing.createCellComment(anchor);
+        comment.setString(factory.createRichTextString(text));
+        comment.setAuthor(REVIEWER);
+        cell.setCellComment(comment);
     }
 
     @Override

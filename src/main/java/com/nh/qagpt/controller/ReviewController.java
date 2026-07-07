@@ -14,7 +14,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -62,14 +64,35 @@ public class ReviewController {
                 .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
 
         byte[] xlsx = resultGenerator.generateCorrectiveActionLedger(result);
+        return xlsxResponse(xlsx, "시정조치관리대장_" + id + ".xlsx");
+    }
 
-        String filename = "시정조치관리대장_" + id + ".xlsx";
+    /**
+     * [S5] AI 개선 산출물(.xlsx) 다운로드. 원본 파일 저장 연동 전이므로 원본을 함께 업로드받아
+     * 개선(ERROR) 위치에 [개선] 태그를 달아 반환한다(단계별 1개).
+     */
+    @PostMapping(value = "/{id}/improved-artifact", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadImprovedArtifact(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        ReviewResult result = reviewResultRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+
+        byte[] improved = resultGenerator.generateImprovedArtifact(
+                result, file.getBytes(), file.getOriginalFilename());
+
+        String base = file.getOriginalFilename() == null ? "artifact.xlsx" : file.getOriginalFilename();
+        return xlsxResponse(improved, "개선_" + base);
+    }
+
+    private ResponseEntity<Resource> xlsxResponse(byte[] bytes, String filename) {
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename*=UTF-8''" + encoded)
                 .contentType(MediaType.parseMediaType(
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(new ByteArrayResource(xlsx));
+                .body(new ByteArrayResource(bytes));
     }
 }
