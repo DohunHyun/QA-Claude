@@ -208,10 +208,11 @@ public class ResultGeneratorImpl implements ResultGenerator {
         }
     }
 
+    private final HwpxReviewReportWriter reportWriter = new HwpxReviewReportWriter();
+
     @Override
     public byte[] generateReviewReport(ReviewResult result) {
-        // TODO(S7): 단계말 검토결과서(HWPX) — 항목별 결과(개선/권고/OK)·결함유형·관점·근거 위치.
-        throw new UnsupportedOperationException("TODO(S7): 단계말 검토결과서 생성");
+        return reportWriter.write(result);
     }
 
     // ── 표지 ──────────────────────────────────────────────────────
