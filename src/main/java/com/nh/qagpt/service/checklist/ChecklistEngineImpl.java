@@ -34,6 +34,8 @@ public class ChecklistEngineImpl implements ChecklistEngine {
     private final Phase1Validator phase1 = new Phase1Validator();
     /** [S8] Phase3 목록/정합성(유형 확대 필수컬럼·ID중복·enum). */
     private final Phase3ListValidator phase3 = new Phase3ListValidator();
+    /** [S8/후속] Phase2 요구사항추적표 양방향 매핑. */
+    private final Phase2TraceabilityValidator phase2 = new Phase2TraceabilityValidator();
 
     @Override
     public List<Defect> apply(ParsedDocument document, ArtifactType type, Project project) {
@@ -47,6 +49,8 @@ public class ChecklistEngineImpl implements ChecklistEngine {
         }
         // [S8] Phase3: 유형 확대(프로그램목록·인터페이스정의서 필수컬럼) + ID중복 + 개발구분 enum.
         defects.addAll(phase3.validate(document, type));
+        // [S8/후속] Phase2: 요구사항추적표 양방향(요구사항→설계) 매핑 누락.
+        defects.addAll(phase2.validate(document, type));
         return defects;
     }
 
