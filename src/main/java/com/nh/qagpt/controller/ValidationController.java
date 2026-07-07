@@ -56,6 +56,9 @@ public class ValidationController {
         // artifactType 미지정 시 orchestrator가 자동 인식하여 doc에 채운다.
         ReviewResult result = orchestrator.runReview(saved, file.getBytes(), artifactType);
 
+        // [S6] orchestrator가 채운 유형/단계를 영속화 (회차 집계·현황이 유형으로 조회하므로 필수).
+        documentRepository.save(saved);
+
         ArtifactType detected = saved.getArtifactType();
         List<DefectDto> defects = result.getDefects().stream().map(DefectDto::from).toList();
         String message = result.isPassed() ? "결함 없음" : (defects.size() + "건의 결함이 발견되었습니다.");
