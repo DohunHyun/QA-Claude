@@ -58,6 +58,7 @@ public class ReviewStatusService {
     private ArtifactHistory toHistory(ArtifactType type, List<ReviewResult> results) {
         List<RoundSummary> rounds = new ArrayList<>();
         Integer passedAtRound = null;
+        int prevTarget = -1; // 직전 회차 대상 건수(첫 회차는 없음)
         for (ReviewResult r : results) {
             int improvement = 0, recommendation = 0;
             for (Defect d : r.getDefects()) {
@@ -68,13 +69,15 @@ public class ReviewStatusService {
                 }
             }
             int target = improvement + recommendation;
-            int completed = 0;            // 완료 추적(시정조치 확인)은 후속 — 현재 0
-            int remaining = target - completed;
+            // 완료 = 직전 회차 대비 이번 회차에 해소된 건수(재검증으로 줄어든 만큼). 첫 회차는 0.
+            int completed = prevTarget < 0 ? 0 : Math.max(0, prevTarget - target);
+            int remaining = target; // 이번 회차에 남아있는 결함 수
             rounds.add(new RoundSummary(r.getRound(), r.isPassed(),
                     target, completed, remaining, improvement, recommendation));
             if (passedAtRound == null && r.isPassed()) {
                 passedAtRound = r.getRound();
             }
+            prevTarget = target;
         }
         boolean latestPassed = !results.isEmpty() && results.get(results.size() - 1).isPassed();
         Stage stage = type.getStage();

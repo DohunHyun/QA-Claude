@@ -99,10 +99,13 @@ class S6ReviewStatusApiTest {
                 .andExpect(jsonPath("$.artifacts[0].rounds[0].passed").value(false))
                 .andExpect(jsonPath("$.artifacts[0].rounds[0].improvementCount").value(1))
                 .andExpect(jsonPath("$.artifacts[0].rounds[0].target").value(1))
+                .andExpect(jsonPath("$.artifacts[0].rounds[0].completed").value(0))
                 .andExpect(jsonPath("$.artifacts[0].rounds[0].remaining").value(1))
                 .andExpect(jsonPath("$.artifacts[0].rounds[1].round").value(2))
                 .andExpect(jsonPath("$.artifacts[0].rounds[1].passed").value(true))
                 .andExpect(jsonPath("$.artifacts[0].rounds[1].target").value(0))
+                .andExpect(jsonPath("$.artifacts[0].rounds[1].completed").value(1)) // 1건 해소
+                .andExpect(jsonPath("$.artifacts[0].rounds[1].remaining").value(0))
                 // 분석 단계 통과 → 다음 단계(설계) 진행 가능
                 .andExpect(jsonPath("$.stages[?(@.stage=='ANALYSIS')].passed").value(true))
                 .andExpect(jsonPath("$.stages[?(@.stage=='ANALYSIS')].nextStage").value("설계"))
