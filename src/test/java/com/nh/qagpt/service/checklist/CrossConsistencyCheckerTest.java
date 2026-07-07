@@ -52,4 +52,19 @@ class CrossConsistencyCheckerTest {
             assertThat(d.getDescription()).contains("근거 요구사항");
         });
     }
+
+    @Test
+    void ID부분집합_초과ID_검출() {
+        List<Defect> defects = checker.idSubsetCoverage(
+                Set.of("BJ-1", "BJ-2", "BJ-3"), Set.of("BJ-1", "BJ-2"), "배치Job목록", "배치설계서");
+        assertThat(defects).hasSize(1);
+        assertThat(defects.get(0).getLocationId()).isEqualTo("BJ-3");
+        assertThat(defects.get(0).getDescription()).contains("배치설계서에 존재하지 않");
+    }
+
+    @Test
+    void ID부분집합_완전포함이면_결함없음() {
+        assertThat(checker.idSubsetCoverage(
+                Set.of("BJ-1"), Set.of("BJ-1", "BJ-2"), "배치Job목록", "배치설계서")).isEmpty();
+    }
 }

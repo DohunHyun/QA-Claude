@@ -6,7 +6,10 @@ import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.domain.enums.ArtifactType;
 import com.nh.qagpt.domain.enums.ReviewStatus;
 import com.nh.qagpt.domain.enums.Severity;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nh.qagpt.repository.ReviewResultRepository;
+import com.nh.qagpt.service.checklist.ArtifactSummary;
+import com.nh.qagpt.service.checklist.ArtifactSummaryExtractor;
 import com.nh.qagpt.service.checklist.ChecklistEngine;
 import com.nh.qagpt.service.checklist.LlmChecklistEvaluator;
 import com.nh.qagpt.service.classifier.DocumentClassifier;
@@ -32,12 +35,16 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class ReviewOrchestrator {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final DocumentParserRouter parserRouter;
     private final DocumentClassifier classifier;
     private final ChecklistEngine checklistEngine;
     private final LlmChecklistEvaluator llmEvaluator;
     private final ResultGenerator resultGenerator;
     private final ReviewResultRepository reviewResultRepository;
+    /** [S8/후속] 교차 정합성용 요약 추출 (상태 없음). */
+    private final ArtifactSummaryExtractor summaryExtractor = new ArtifactSummaryExtractor();
 
     public ReviewOrchestrator(DocumentParserRouter parserRouter,
                               DocumentClassifier classifier,
@@ -81,6 +88,14 @@ public class ReviewOrchestrator {
                     .anyMatch(d -> d.getSeverity() == Severity.IMPROVEMENT);
             result.setPassed(!hasImprovement);
             result.setStatus(ReviewStatus.COMPLETED);
+
+            // [S8/후속] 교차 산출물 정합성용 요약 저장 (실패해도 검증은 계속).
+            try {
+                ArtifactSummary summary = summaryExtractor.extract(parsed, type);
+                result.setRawResultJson(OBJECT_MAPPER.writeValueAsString(summary));
+            } catch (Exception ignore) {
+                // 요약 직렬화 실패는 검증 결과에 영향 없음
+            }
         } catch (RuntimeException e) {
             result.setStatus(ReviewStatus.FAILED);
             throw e; // 파싱 실패 등은 상위(예외 핸들러)에서 사용자 메시지로 변환

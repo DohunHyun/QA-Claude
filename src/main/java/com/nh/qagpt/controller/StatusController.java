@@ -1,9 +1,11 @@
 package com.nh.qagpt.controller;
 
+import com.nh.qagpt.dto.DefectDto;
 import com.nh.qagpt.dto.ProjectReviewStatusResponse;
 import com.nh.qagpt.dto.ReviewResponse;
 import com.nh.qagpt.repository.DefectRepository;
 import com.nh.qagpt.repository.ReviewResultRepository;
+import com.nh.qagpt.service.CrossConsistencyService;
 import com.nh.qagpt.service.ReviewStatusService;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,13 +19,16 @@ public class StatusController {
     private final ReviewResultRepository reviewResultRepository;
     private final DefectRepository defectRepository;
     private final ReviewStatusService reviewStatusService;
+    private final CrossConsistencyService crossConsistencyService;
 
     public StatusController(ReviewResultRepository reviewResultRepository,
                             DefectRepository defectRepository,
-                            ReviewStatusService reviewStatusService) {
+                            ReviewStatusService reviewStatusService,
+                            CrossConsistencyService crossConsistencyService) {
         this.reviewResultRepository = reviewResultRepository;
         this.defectRepository = defectRepository;
         this.reviewStatusService = reviewStatusService;
+        this.crossConsistencyService = crossConsistencyService;
     }
 
     @GetMapping("/health")
@@ -43,5 +48,15 @@ public class StatusController {
     @GetMapping("/projects/{projectId}/review-status")
     public ProjectReviewStatusResponse reviewStatus(@PathVariable Long projectId) {
         return reviewStatusService.status(projectId);
+    }
+
+    /** [S8/후속] 교차 산출물 정합성 — 프로젝트 산출물 간 ID/건수 정합성 결함 목록. */
+    @GetMapping("/projects/{projectId}/cross-consistency")
+    public Map<String, Object> crossConsistency(@PathVariable Long projectId) {
+        List<DefectDto> defects = crossConsistencyService.check(projectId);
+        return Map.of(
+                "projectId", projectId,
+                "defectCount", defects.size(),
+                "defects", defects);
     }
 }
