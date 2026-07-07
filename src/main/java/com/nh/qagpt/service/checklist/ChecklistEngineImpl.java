@@ -24,8 +24,11 @@ import java.util.stream.Collectors;
 @Service
 public class ChecklistEngineImpl implements ChecklistEngine {
 
-    /** [S1] 배치Job목록 최소 필수컬럼. */
-    private static final List<String> BATCH_JOB_REQUIRED_COLUMNS = List.of("Job ID", "명칭");
+    /**
+     * [S1] 배치Job목록 최소 필수컬럼 (체크리스트 §3 필수 항목 중 핵심).
+     * 표기 편차(구 템플릿 "배치Job ID"·신 포맷 "Batch Job ID")를 흡수하도록 "Job ID" 토큰으로 매칭.
+     */
+    private static final List<String> BATCH_JOB_REQUIRED_COLUMNS = List.of("Job ID", "단위업무명");
 
     @Override
     public List<Defect> apply(ParsedDocument document, ArtifactType type, Project project) {

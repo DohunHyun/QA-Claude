@@ -36,3 +36,6 @@ Thumbs.db
 /uploads/
 /generated/
 /tmp/
+
+# ===== 로컬 검증용 샘플 (git 미포함) =====
+/local-samples/

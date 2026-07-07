@@ -25,8 +25,9 @@ class S1BatchJobValidationTest {
 
     @Test
     void 필수컬럼_모두있으면_결함없음() throws Exception {
-        byte[] xlsx = workbook(List.of("단위업무명", "Job ID", "명칭"),
-                List.of("여신", "JOB001", "일일정산배치"));
+        // 구 템플릿 표기(배치Job ID / 업무명) 기준 정상 문서
+        byte[] xlsx = workbook(List.of("단위업무명", "배치Job ID", "업무명"),
+                List.of("여신", "BJ-DE-0001", "일일정산배치"));
 
         ParsedDocument parsed = parser.parse(xlsx, "batch.xlsx", null);
         List<Defect> defects = engine.apply(parsed, ArtifactType.BATCH_JOB_LIST, null);
@@ -35,9 +36,21 @@ class S1BatchJobValidationTest {
     }
 
     @Test
-    void 명칭컬럼_누락시_개선결함_근거위치포함() throws Exception {
-        byte[] xlsx = workbook(List.of("단위업무명", "Job ID"),
-                List.of("여신", "JOB001"));
+    void 신포맷_영문JobID표기도_정상인식() throws Exception {
+        // 신 포맷 표기(Batch Job ID) — "Job ID" 토큰 매칭으로 결함 없어야 함
+        byte[] xlsx = workbook(List.of("단위업무명", "Batch Job ID", "Batch Job 설명"),
+                List.of("AP", "befepcopr01", "비대면기업뱅킹신규진행만료처리"));
+
+        ParsedDocument parsed = parser.parse(xlsx, "batch.xlsx", null);
+        List<Defect> defects = engine.apply(parsed, ArtifactType.BATCH_JOB_LIST, null);
+
+        assertThat(defects).isEmpty();
+    }
+
+    @Test
+    void 단위업무명컬럼_누락시_개선결함_근거위치포함() throws Exception {
+        byte[] xlsx = workbook(List.of("배치Job ID", "업무명"),
+                List.of("BJ-DE-0001", "일일정산배치"));
 
         ParsedDocument parsed = parser.parse(xlsx, "batch.xlsx", null);
         List<Defect> defects = engine.apply(parsed, ArtifactType.BATCH_JOB_LIST, null);
@@ -46,7 +59,7 @@ class S1BatchJobValidationTest {
         Defect d = defects.get(0);
         assertThat(d.getSeverity()).isEqualTo(Severity.IMPROVEMENT);
         assertThat(d.getDefectType()).isEqualTo(DefectType.MISSING_REQUIRED);
-        assertThat(d.getLocationColumn()).isEqualTo("명칭");
+        assertThat(d.getLocationColumn()).isEqualTo("단위업무명");
         assertThat(d.getLocationSheet()).isNotBlank();
     }
 
