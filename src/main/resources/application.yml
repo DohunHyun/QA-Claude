@@ -27,6 +27,8 @@ qagpt:
     model: claude-sonnet-4-6
     version: "2023-06-01"
     max-tokens: 4096
+    # 재검증 재현성(S2 수락기준): 0.0=결정적. 값을 올리면 판정이 요청마다 달라질 수 있음.
+    temperature: 0.0
 
 springdoc:
   swagger-ui:

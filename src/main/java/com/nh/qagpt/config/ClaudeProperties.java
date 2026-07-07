@@ -16,6 +16,8 @@ public class ClaudeProperties {
     private String version = "2023-06-01";
     /** 응답 최대 토큰. */
     private int maxTokens = 4096;
+    /** 샘플링 온도. 재검증 재현성(spec S2 수락기준)을 위해 기본 0.0 (결정적). */
+    private double temperature = 0.0;
 
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -27,4 +29,11 @@ public class ClaudeProperties {
     public void setVersion(String version) { this.version = version; }
     public int getMaxTokens() { return maxTokens; }
     public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+    public double getTemperature() { return temperature; }
+    public void setTemperature(double temperature) { this.temperature = temperature; }
+
+    /** API 키가 설정되어 있는지 (미설정 시 LLM 단계는 건너뛰고 규칙검증만 수행). */
+    public boolean hasApiKey() {
+        return apiKey != null && !apiKey.isBlank();
+    }
 }
