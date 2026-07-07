@@ -32,6 +32,8 @@ public class ChecklistEngineImpl implements ChecklistEngine {
 
     /** [S3] Phase1 표준 보증(파일명·표지·개정이력). 상태 없음 — 직접 인스턴스화(엔진 no-arg 생성자 유지). */
     private final Phase1Validator phase1 = new Phase1Validator();
+    /** [S8] Phase3 목록/정합성(유형 확대 필수컬럼·ID중복·enum). */
+    private final Phase3ListValidator phase3 = new Phase3ListValidator();
 
     @Override
     public List<Defect> apply(ParsedDocument document, ArtifactType type, Project project) {
@@ -39,10 +41,12 @@ public class ChecklistEngineImpl implements ChecklistEngine {
         // [S3] Phase1: 모든 유형 공통 — 프로젝트 등록정보를 기준값으로 파일명/표지/개정이력 검증.
         defects.addAll(phase1.validate(document, project));
 
+        // [S1] 배치Job목록 필수컬럼(핵심). 나머지 목록형 필수컬럼은 Phase3에서 담당.
         if (type == ArtifactType.BATCH_JOB_LIST) {
             defects.addAll(checkRequiredColumns(document, BATCH_JOB_REQUIRED_COLUMNS));
         }
-        // TODO(S4+): 유형별 Phase2~4 체크리스트 적용 확장
+        // [S8] Phase3: 유형 확대(프로그램목록·인터페이스정의서 필수컬럼) + ID중복 + 개발구분 enum.
+        defects.addAll(phase3.validate(document, type));
         return defects;
     }
 
