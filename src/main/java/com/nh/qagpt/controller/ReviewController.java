@@ -1,13 +1,22 @@
 package com.nh.qagpt.controller;
 
+import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.dto.ReviewResponse;
 import com.nh.qagpt.exception.ResourceNotFoundException;
 import com.nh.qagpt.repository.DefectRepository;
 import com.nh.qagpt.repository.ReviewResultRepository;
 import com.nh.qagpt.service.ReviewOrchestrator;
+import com.nh.qagpt.service.generator.ResultGenerator;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
@@ -17,13 +26,16 @@ public class ReviewController {
     private final ReviewOrchestrator orchestrator;
     private final ReviewResultRepository reviewResultRepository;
     private final DefectRepository defectRepository;
+    private final ResultGenerator resultGenerator;
 
     public ReviewController(ReviewOrchestrator orchestrator,
                             ReviewResultRepository reviewResultRepository,
-                            DefectRepository defectRepository) {
+                            DefectRepository defectRepository,
+                            ResultGenerator resultGenerator) {
         this.orchestrator = orchestrator;
         this.reviewResultRepository = reviewResultRepository;
         this.defectRepository = defectRepository;
+        this.resultGenerator = resultGenerator;
     }
 
     /** 검토 트리거 — 백그라운드(reviewExecutor)에서 4-Phase 검증 실행. 즉시 202 응답. */
@@ -40,5 +52,24 @@ public class ReviewController {
         return reviewResultRepository.findById(id)
                 .map(r -> ReviewResponse.from(r, defectRepository.countByReviewResultId(r.getId())))
                 .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+    }
+
+    /** [S4] 시정조치관리대장(.xlsx) 다운로드. lazy 연관(project/document/defects) 로드 위해 트랜잭션 내 생성. */
+    @GetMapping("/{id}/corrective-action-ledger")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadCorrectiveActionLedger(@PathVariable Long id) {
+        ReviewResult result = reviewResultRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+
+        byte[] xlsx = resultGenerator.generateCorrectiveActionLedger(result);
+
+        String filename = "시정조치관리대장_" + id + ".xlsx";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new ByteArrayResource(xlsx));
     }
 }
