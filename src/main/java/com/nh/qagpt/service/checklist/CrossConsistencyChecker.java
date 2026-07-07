@@ -56,6 +56,26 @@ public class CrossConsistencyChecker {
         return defects;
     }
 
+    /**
+     * ID 부분집합 정합성 (예: 배치Job목록 Job ID ⊆ 배치설계서 Job ID — checklist_batch_job_list §5).
+     * subset에만 있고 superset에 없는 ID를 개선으로 보고한다.
+     */
+    public List<Defect> idSubsetCoverage(Set<String> subset, Set<String> superset,
+                                         String subsetLabel, String supersetLabel) {
+        List<Defect> defects = new ArrayList<>();
+        for (String id : subset) {
+            if (!superset.contains(id)) {
+                Defect d = base(Severity.IMPROVEMENT, DefectType.CONTENT_ERROR);
+                d.setChecklistItemKey("artifact_set_consistency.id_subset");
+                d.setLocationId(id);
+                d.setDescription(subsetLabel + " '" + id + "'이(가) " + supersetLabel + "에 존재하지 않습니다.");
+                d.setImprovementGuide(supersetLabel + "에 해당 ID를 반영하거나 " + subsetLabel + "을(를) 정정하세요.");
+                defects.add(d);
+            }
+        }
+        return defects;
+    }
+
     private Defect mappingDefect(String id, String desc, String guide) {
         Defect d = base(Severity.IMPROVEMENT, DefectType.MISSING_REQUIRED);
         d.setPerspective(Perspective.PROCESS); // 산출물 간 추적성 → 프로세스 관점
