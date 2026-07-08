@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로젝트 현황 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="project" data-page="project-detail">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 프로젝트 <span class="sep">›</span> 프로젝트 현황</div>
+
+    <!-- 프로젝트 선택 -->
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:360px"></select></div>
+      <a class="btn sm sec" href="projects.html">전체 목록</a>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+    </div>
+
+    <div id="detail"></div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M = window.MOCK, e = M.esc;
+    var u = M.currentUser() || {};
+    var list = M.visibleProjects();            // 역할별 조회 가능 프로젝트
+    var params = new URLSearchParams(location.search);
+
+    document.getElementById('scopeTag').innerHTML = (u.role === 'PM')
+      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+
+    function isValidatable(p){ return p.status === 'ACTIVE' || p.status === 'APPROVED'; }
+
+    // 선택 드롭다운
+    if (!list.length) {
+      document.getElementById('projSel').innerHTML = '<option>담당 프로젝트 없음</option>';
+      document.getElementById('detail').innerHTML =
+        '<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+    } else {
+      document.getElementById('projSel').innerHTML = list.map(function(p){
+        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>';
+      }).join('');
+
+      // 초기 선택: URL projectId → 없으면 첫 프로젝트
+      var pid = params.get('projectId');
+      var sel = list.filter(function(p){ return String(p.id) === String(pid); })[0] || list[0];
+      document.getElementById('projSel').value = String(sel.id);
+      render(sel);
+
+      document.getElementById('projSel').addEventListener('change', function(){
+        var val = this.value;
+        var p = list.filter(function(x){ return String(x.id) === val; })[0];
+        if (p) { render(p); history.replaceState(null, '', 'project-detail.html?projectId='+p.id); }
+      });
+    }
+
+    // ── 단계 흐름 계산 ────────────────────────────────────
+    function stageFlow(p){
+      var steps = ['프로젝트 신청','관리자 승인','관리산출물','분석단계','설계단계','단계말 검토결과'];
+      var rejected = (p.status === 'REJECTED');
+      var curIdx;
+      if (p.status === 'REQUESTED') curIdx = 1;            // 승인 대기
+      else if (rejected) curIdx = 1;
+      else { var m = { '관리':2, '분석':3, '설계':4, '-':2 }; curIdx = m[p.stage] != null ? m[p.stage] : 2; }
+      return steps.map(function(s, i){
+        var cls = i < curIdx ? 'done' : (i === curIdx ? (rejected ? 'fail' : 'cur') : '');
+        var style = (i === curIdx && rejected) ? ' style="color:var(--err)"' : '';
+        var ndot = (i === curIdx && rejected)
+          ? '<span class="n" style="background:var(--err)">!</span>'
+          : '<span class="n">'+(i < curIdx ? '✓' : (i + 1))+'</span>';
+        return '<div class="st '+cls+'"'+style+'>'+ndot+e(s)+'</div>';
+      }).join('');
+    }
+
+    function verdict(r){
+      return r.status !== 'COMPLETED' ? '<span class="muted">-</span>'
+        : (r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>');
+    }
+
+    // ── 렌더 ──────────────────────────────────────────────
+    function render(p){
+      var revs = M.REVIEWS.filter(function(r){ return r.project === p.code; })
+                          .slice().sort(function(a,b){ return b.id - a.id; });
+      var completed = revs.filter(function(r){ return r.status === 'COMPLETED'; });
+      var rounds = revs.length;
+      var passedCnt = completed.filter(function(r){ return r.passed; }).length;
+      var errSum = completed.reduce(function(s,r){ return s + (r.error||0); }, 0);
+      var warnSum = completed.reduce(function(s,r){ return s + (r.warn||0); }, 0);
+
+      // 산출물별 최신 상태 (회차 최댓값 기준)
+      var byArt = {};
+      revs.forEach(function(r){ if (!byArt[r.code] || r.round > byArt[r.code].round) byArt[r.code] = r; });
+      var artRows = Object.keys(byArt).map(function(k){ return byArt[k]; })
+                    .sort(function(a,b){ return b.id - a.id; });
+
+      var html =
+        '<div class="page-head">'
+        + '<div><h1>'+e(p.name)+' <span class="pill">'+e(p.code)+'</span></h1>'
+        + '<p>PM '+e(p.pm)+' · 기간 '+e(p.start||'-')+' ~ '+e(p.end||'-')+' · 상태 '+M.stateHtml(p.status)+'</p></div>'
+        + (isValidatable(p)
+            ? '<a class="btn" href="validation-upload.html?projectId='+p.id+'" data-role="PM">산출물 검증</a>'
+            : '<span class="pill g">'+(p.status==='REQUESTED'?'승인 대기 — 검증 불가':(p.status==='REJECTED'?'반려됨':'검증 대기'))+'</span>')
+        + '</div>';
+
+      html += '<section class="panel"><div class="p-head"><h2>단계별 진행</h2><span class="more">§7.1 업무 프로세스</span></div>'
+        + '<div class="p-body"><div class="steps">'+stageFlow(p)+'</div></div></section>';
+
+      html += '<div class="kpis">'
+        + '<div class="kpi"><div class="k-label">누적 검증 회차</div><div class="k-value">'+rounds+'<small> 회</small></div></div>'
+        + '<div class="kpi ok"><div class="k-label">통과 검증</div><div class="k-value">'+passedCnt+'<small> 건</small></div></div>'
+        + '<div class="kpi err"><div class="k-label">개선(누적)</div><div class="k-value">'+errSum+'<small> 건</small></div></div>'
+        + '<div class="kpi warn"><div class="k-label">권고(누적)</div><div class="k-value">'+warnSum+'<small> 건</small></div></div>'
+        + '</div>';
+
+      html += '<section class="panel"><div class="p-head"><h2>산출물별 검증 현황</h2>'
+        + (isValidatable(p) ? '<a class="more" href="validation-upload.html?projectId='+p.id+'" data-role="PM">＋ 검증</a>' : '')
+        + '</div><div class="p-body flush"><div class="tbl-scroll"><table class="tbl">'
+        + '<thead><tr><th class="num">단계</th><th class="num">코드</th><th>산출물</th><th class="num">최근회차</th><th class="num">상태</th><th class="num">판정</th><th class="num">개선</th><th class="num">권고</th><th class="num">최근검증</th></tr></thead><tbody>';
+      html += artRows.length
+        ? artRows.map(function(r){
+            return '<tr><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
+              + '<td class="num">'+e(r.code)+'</td><td><b>'+e(r.artifact)+'</b></td>'
+              + '<td class="num">'+r.round+'회차</td><td class="num">'+M.stateHtml(r.status)+'</td>'
+              + '<td class="num">'+verdict(r)+'</td>'
+              + '<td class="num">'+(r.error?'<span class="badge 개선">'+r.error+'</span>':'<span class="muted">0</span>')+'</td>'
+              + '<td class="num">'+(r.warn?'<span class="badge 권고">'+r.warn+'</span>':'<span class="muted">0</span>')+'</td>'
+              + '<td class="num muted">'+e(r.date)+'</td></tr>';
+          }).join('')
+        : '<tr><td colspan="9" class="muted" style="text-align:center;padding:22px">아직 검증 이력이 없습니다.'
+          + (p.status==='REQUESTED' ? ' (관리자 승인 후 검증 가능)' : '') + '</td></tr>';
+      html += '</tbody></table></div></div></section>';
+
+      html += '<section class="panel"><div class="p-head"><h2>회차별 검증 이력</h2><span class="more">재검증 추적</span></div>'
+        + '<div class="p-body flush"><table class="tbl">'
+        + '<thead><tr><th class="num">검토ID</th><th>산출물</th><th class="num">회차</th><th class="num">상태</th><th class="num">판정</th><th class="num">결함</th><th class="num">검증일</th><th class="num">결과물</th></tr></thead><tbody>';
+      html += revs.length
+        ? revs.map(function(r){
+            return '<tr><td class="num">#'+r.id+'</td><td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
+              + '<td class="num">'+r.round+'회차</td><td class="num">'+M.stateHtml(r.status)+'</td>'
+              + '<td class="num">'+verdict(r)+'</td>'
+              + '<td class="num"><span class="badge 개선">'+r.error+'</span> <span class="badge 권고">'+r.warn+'</span></td>'
+              + '<td class="num muted">'+e(r.date)+'</td>'
+              + '<td class="num">'+(r.status==='COMPLETED'?'<a class="btn sm sec" href="corrective-actions.html">대장</a>':'-')+'</td></tr>';
+          }).join('')
+        : '<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다.</td></tr>';
+      html += '</tbody></table></div></section>';
+
+      document.getElementById('detail').innerHTML = html;
+      if (window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
+    }
+  </script>
+</body>
+</html>

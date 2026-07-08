@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>시정조치관리대장 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="action" data-page="corrective-actions">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 시정조치 <span class="sep">›</span> 시정조치관리대장</div>
+    <div class="page-head">
+      <div><h1>시정조치관리대장 <span class="pill">PM-342-03</span></h1>
+      <p>검증마다 자동 생성 (Excel 3시트: 표지 · 개정이력 · 시정조치서). 프로젝트별로 조회합니다.</p></div>
+      <div class="btn-row"><button class="btn sec" data-role="PM,QA" data-role-mode="disable">＋ 개정이력</button><button class="btn">Excel 다운로드</button></div>
+    </div>
+
+    <!-- 프로젝트 / 필터 -->
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
+      <div class="fg"><label>판정</label><select id="sevSel"><option value="">전체</option><option>개선</option><option>권고</option></select></div>
+      <div class="fg"><label>조치상태</label><select id="statSel"><option value="">전체</option><option value="TARGET">대상</option><option value="IN_PROGRESS">조치중</option><option value="DONE">완료</option></select></div>
+      <div class="fg"><label>검색</label><input type="text" id="q" placeholder="산출물 · 결함내용"></div>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+    </div>
+
+    <div id="detail"></div>
+
+    <div class="note" style="margin-top:14px">구현 주의: 버전·식별번호 등 표시용 컬럼은 셀 서식을 <b>텍스트(String)</b>로 강제 지정하여 저장합니다 (Excel 부동소수점 오차 방지 — 실제 PoC에서 확인).</div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    var u=M.currentUser()||{};
+    var list=M.visibleProjects();
+    var params=new URLSearchParams(location.search);
+
+    document.getElementById('scopeTag').innerHTML = (u.role==='PM')
+      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+
+    if(!list.length){
+      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
+      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+    } else {
+      document.getElementById('projSel').innerHTML=list.map(function(p){
+        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+      var pid=params.get('projectId');
+      var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
+      document.getElementById('projSel').value=String(sel.id);
+      render();
+      document.getElementById('projSel').addEventListener('change', function(){
+        history.replaceState(null,'','corrective-actions.html?projectId='+this.value); render(); });
+      ['sevSel','statSel'].forEach(function(id){ document.getElementById(id).addEventListener('change', render); });
+      document.getElementById('q').addEventListener('input', render);
+    }
+
+    function curProject(){
+      var id=document.getElementById('projSel').value;
+      return list.filter(function(p){return String(p.id)===id;})[0];
+    }
+
+    function render(){
+      var p=curProject(); if(!p) return;
+      var all=M.defectsFor(p.code);
+      // 필터 적용
+      var sev=document.getElementById('sevSel').value;
+      var stat=document.getElementById('statSel').value;
+      var q=(document.getElementById('q').value||'').trim();
+      var D=all.filter(function(d){
+        if(sev && d.sev!==sev) return false;
+        if(stat && d.status!==stat) return false;
+        if(q && (e(d.artifact)+e(d.desc)+e(d.no)).indexOf(q)===-1) return false;
+        return true;
+      });
+
+      var target=all.length, done=all.filter(function(d){return d.status==='DONE';}).length;
+      var baseDate=all.reduce(function(m,d){return d.date>m?d.date:m;}, '');
+
+      var html='<div class="kpis">'
+        + '<div class="kpi"><div class="k-label">시정조치 대상건수</div><div class="k-value">'+target+'</div></div>'
+        + '<div class="kpi ok"><div class="k-label">완료건수</div><div class="k-value">'+done+'</div></div>'
+        + '<div class="kpi err"><div class="k-label">잔여건수</div><div class="k-value">'+(target-done)+'</div></div>'
+        + '<div class="kpi"><div class="k-label">산출물 기준일</div><div class="k-value" style="font-size:18px">'+(baseDate||'-')+'</div></div>'
+        + '</div>';
+
+      html += '<section class="panel"><div class="p-head"><h2>시정조치서 · '+e(p.code)+' <span class="muted" style="font-weight:400">('+D.length+'/'+target+'건)</span></h2></div>'
+        + '<div class="p-body flush"><div class="tbl-scroll"><table class="tbl" style="min-width:1500px"><thead>'
+        + '<tr><th colspan="11" style="background:#e9eefc;color:#284b8a">■ 부적합사항</th>'
+        + '<th colspan="4" style="background:#fdf1e4;color:#8a5a1e">■ 시정조치 계획</th>'
+        + '<th colspan="2" style="background:#eaf6ee;color:#1f7a43">■ 시정조치 확인</th></tr>'
+        + '<tr><th class="num">No</th><th class="num">업무명</th><th class="num">구분</th><th class="num">검토일</th><th class="num">검토자</th>'
+        + '<th>산출물명</th><th>파일명</th><th>부적합 위치</th><th class="num">개선유형</th><th class="num">결함유형</th><th>결함내용</th>'
+        + '<th class="num">조치담당자</th><th class="num">완료예정일</th><th class="num">조치완료일</th><th>비고(계획)</th>'
+        + '<th class="num">조치확인자</th><th class="num">조치확인일</th></tr></thead><tbody>';
+      html += D.length
+        ? D.map(function(d){
+            return '<tr>'
+              +'<td class="num"><b>'+e(d.no)+'</b></td><td class="num">'+e(d.biz)+'</td><td class="num">'+e(d.gubun)+'</td>'
+              +'<td class="num muted">'+e(d.date)+'</td><td class="num">'+e(d.reviewer)+'</td>'
+              +'<td><b>'+e(d.artifact)+'</b></td><td class="muted" style="max-width:220px">'+e(d.file)+'</td>'
+              +'<td>'+e(d.loc)+'</td><td class="num">'+M.sevBadge(d.sev)+'</td><td class="num">'+e(d.dtype)+'</td>'
+              +'<td style="max-width:260px">'+e(d.desc)+'</td>'
+              +'<td class="num">'+e(d.owner)+'</td><td class="num">'+e(d.due)+'</td>'
+              +'<td class="num">'+(d.doneDate?e(d.doneDate):'<span class="muted">-</span>')+'</td>'
+              +'<td class="muted">'+e(d.plan)+' '+M.stateHtml(d.status)+'</td>'
+              +'<td class="num">'+(d.checker?e(d.checker):'<span class="muted">-</span>')+'</td>'
+              +'<td class="num">'+(d.checkDate?e(d.checkDate):'<span class="muted">-</span>')+'</td>'
+              +'</tr>';
+          }).join('')
+        : '<tr><td colspan="17" class="muted" style="text-align:center;padding:24px">'
+          + (target===0 ? '이 프로젝트의 시정조치 항목이 없습니다.' : '필터 조건에 맞는 항목이 없습니다.') + '</td></tr>';
+      html += '</tbody></table></div></div></section>';
+
+      document.getElementById('detail').innerHTML=html;
+      if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
+    }
+  </script>
+</body>
+</html>

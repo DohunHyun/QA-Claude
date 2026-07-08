@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QA-Claude 로그인</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    .acct-list { display:grid; gap:6px; margin-top:14px; }
+    .acct-list .a {
+      display:flex; align-items:center; gap:8px; cursor:pointer;
+      border:1px solid #dbe3ee; border-radius:7px; padding:7px 10px; background:#f7f9fc; font-size:12px;
+    }
+    .acct-list .a:hover { border-color:var(--blue); background:var(--blue-soft); }
+    .acct-list .a b { color:#22405f; }
+    .acct-list .a .r { margin-left:auto; }
+    .login-err { color:var(--err); font-size:12px; margin-top:8px; min-height:16px; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="login-card" id="loginForm">
+      <div class="brand" style="gap:8px;"><span class="dot"></span>QA-Claude</div>
+      <div class="sub">AI 기반 IT SI 산출물 자동 품질검토 · 개선 플랫폼</div>
+
+      <label>아이디</label>
+      <input type="text" id="loginId" value="kmh" autocomplete="username">
+      <label>비밀번호</label>
+      <input type="password" id="loginPw" value="1234" autocomplete="current-password">
+
+      <button class="btn lg" type="submit">로그인</button>
+      <div class="login-err" id="loginErr"></div>
+
+      <div class="sub" style="margin:16px 0 4px">역할별 계정 (클릭 시 자동 입력)</div>
+      <div class="acct-list" id="acctList"></div>
+
+      <div class="roles" style="margin-top:14px"><span>실증 기준: 「(은행) 투자자문 관리시스템 구축」 (NBIA)</span></div>
+    </form>
+  </div>
+
+  <script src="assets/js/session.js"></script>
+  <script>
+    var roleBadge = { 'PM':'blue', 'QA':'blue', '관리자':'blue', '고객사':'gray', '일반':'gray' };
+
+    // 계정 퀵 선택 목록 렌더
+    var list = document.getElementById('acctList');
+    list.innerHTML = QAGPT.getAccounts().map(function (a) {
+      return '<div class="a" data-id="' + a.id + '">'
+        + '<b>' + a.name + '</b> <span class="muted">(' + a.id + ')</span>'
+        + '<span class="badge ' + (roleBadge[a.role] || 'gray') + ' r">' + a.role + '</span></div>';
+    }).join('');
+    list.addEventListener('click', function (ev) {
+      var row = ev.target.closest('.a'); if (!row) return;
+      var a = QAGPT.findAccount(row.getAttribute('data-id'));
+      document.getElementById('loginId').value = a.id;
+      document.getElementById('loginPw').value = a.pw;
+      document.getElementById('loginErr').textContent = '';
+    });
+
+    // 로그인 처리
+    document.getElementById('loginForm').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var id = document.getElementById('loginId').value;
+      var pw = document.getElementById('loginPw').value;
+      var user = QAGPT.authenticate(id, pw);
+      if (!user) {
+        document.getElementById('loginErr').textContent = '아이디 또는 비밀번호가 올바르지 않습니다. (하단 계정 클릭)';
+        return;
+      }
+      QAGPT.setUser(user);
+      location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+</html>

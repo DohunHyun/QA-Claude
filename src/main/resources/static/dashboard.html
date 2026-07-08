@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나의업무 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="portal" data-page="dashboard">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 나의업무 <span class="sep">›</span> 나의 현황</div>
+    <div class="page-head">
+      <div>
+        <h1>나의 현황</h1>
+        <p>담당 프로젝트의 검증 진행 상황과 처리할 업무를 한 곳에서 확인합니다.</p>
+      </div>
+      <div class="btn-row">
+        <a class="btn sec" href="project-new.html" data-role="PM">＋ 프로젝트 신청</a>
+        <a class="btn" href="validation-upload.html" data-role="PM">산출물 검증 시작</a>
+      </div>
+    </div>
+
+    <!-- 알림 (승인 결과 등) -->
+    <section class="panel" id="notis" style="display:none">
+      <div class="p-head"><h2>🔔 알림</h2><button class="btn sm sec" id="notiReadAll">모두 읽음</button></div>
+      <div class="p-body flush"><table class="tbl"><tbody id="notiRows"></tbody></table></div>
+    </section>
+
+    <!-- KPI (visibleProjects/Reviews 기반 집계) -->
+    <div class="kpis">
+      <div class="kpi"><div class="k-label">진행 중 프로젝트</div><div class="k-value"><span id="kProj">0</span><small> 건</small></div></div>
+      <div class="kpi run"><div class="k-label">검증 진행 중</div><div class="k-value" style="color:var(--blue)"><span id="kRun">0</span><small> 회차</small></div></div>
+      <div class="kpi err"><div class="k-label">미조치 개선(ERROR)</div><div class="k-value"><span id="kErr">0</span><small> 건</small></div></div>
+      <div class="kpi warn"><div class="k-label">승인 대기</div><div class="k-value"><span id="kWait">0</span><small> 건</small></div></div>
+    </div>
+
+    <div class="grid2">
+      <!-- 좌: 내 프로젝트 목록 -->
+      <section class="panel">
+        <div class="p-head"><h2 id="projPanelTitle">내 프로젝트</h2><a class="more" href="projects.html">전체보기 ›</a></div>
+        <div class="p-body flush">
+          <div class="tbl-scroll">
+            <table class="tbl">
+              <thead><tr><th class="num">코드</th><th>프로젝트명</th><th class="num">단계</th><th style="width:120px">진행률</th><th class="num">상태</th></tr></thead>
+              <tbody id="myProjects"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 우: 시스템 공지 -->
+      <section class="panel">
+        <div class="p-head"><h2>시스템 공지</h2><a class="more" href="#">더보기 ›</a></div>
+        <div class="p-body flush">
+          <table class="tbl"><tbody id="notices"></tbody></table>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid2">
+      <!-- Action Item -->
+      <section class="panel" id="todo">
+        <div class="p-head"><h2>Action Item</h2><span class="more">처리 필요 업무</span></div>
+        <div class="p-body flush">
+          <table class="tbl">
+            <thead><tr><th class="num">No</th><th>제목</th><th class="num">담당</th><th class="num">완료예정</th><th class="num">상태</th></tr></thead>
+            <tbody id="actions"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 나의 결재 / 승인 -->
+      <section class="panel" id="approval">
+        <div class="p-head"><h2>나의 결재 / 승인 대기</h2><span class="more">QA · 관리자</span></div>
+        <div class="p-body flush">
+          <table class="tbl">
+            <thead><tr><th class="num">구분</th><th>대상</th><th class="num">요청자</th><th class="num">요청일</th><th class="num">처리</th></tr></thead>
+            <tbody id="approvals"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M = window.MOCK, e = M.esc;
+    var me = (M.currentUser() || {}).name || '';
+
+    // ── KPI 집계 (조회 가능 프로젝트 기준) ────────────────
+    (function(){
+      var projs = M.visibleProjects();
+      var revs = M.visibleReviews();
+      var defs = []; projs.forEach(function(p){ defs = defs.concat(M.defectsFor(p.code)); });
+      var kProj = projs.filter(function(p){ return p.status==='ACTIVE'; }).length;
+      var kRun = revs.filter(function(r){ return r.status==='RUNNING'; }).length;
+      var kErr = defs.filter(function(d){ return d.sev==='개선' && d.status!=='DONE'; }).length;
+      var kWait = projs.filter(function(p){ return p.status==='REQUESTED'; }).length;
+      document.getElementById('kProj').textContent = kProj;
+      document.getElementById('kRun').textContent = kRun;
+      document.getElementById('kErr').textContent = kErr;
+      document.getElementById('kWait').textContent = kWait;
+    })();
+
+    // ── 알림 렌더 (승인 결과 등) ──────────────────────────
+    function renderNotis(){
+      var list = M.notificationsFor(me);
+      if (!list.length) { document.getElementById('notis').style.display = 'none'; return; }
+      document.getElementById('notis').style.display = '';
+      document.getElementById('notiRows').innerHTML = list.map(function(n){
+        var icon = n.type === 'approved' ? '<span class="state done">승인</span>'
+                 : n.type === 'report' ? '<span class="state done">발급</span>'
+                 : '<span class="state fail">반려</span>';
+        var dot = n.read ? '' : '<span class="pill" style="padding:1px 7px">NEW</span> ';
+        // 읽음 여부와 무관하게 개별 삭제 가능
+        var del = '<button class="btn sm sec" data-del="'+e(n.id)+'" title="삭제">×</button>';
+        return '<tr' + (n.read ? '' : ' style="background:#f4f9ff"') + '>'
+          + '<td class="num" style="width:70px">'+icon+'</td>'
+          + '<td>'+dot+'<b>'+e(n.title)+'</b> <span class="muted">— '+e(n.message)+'</span></td>'
+          + '<td class="num muted" style="width:130px">'+e(n.by)+' · '+e(n.at)+'</td>'
+          + '<td class="num" style="width:120px"><a class="btn sm sec" href="project-detail.html">보기</a> '+del+'</td></tr>';
+      }).join('');
+    }
+    renderNotis();
+    document.getElementById('notiReadAll').addEventListener('click', function(){
+      M.markAllReadFor(me);
+      renderNotis();
+      if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+    });
+    // 개별 삭제 (이벤트 위임)
+    document.getElementById('notiRows').addEventListener('click', function(ev){
+      var btn = ev.target.closest('[data-del]');
+      if (!btn) return;
+      M.removeNotification(btn.getAttribute('data-del'));
+      renderNotis();
+      if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+    });
+    // 해시(#notis)로 진입 시 스크롤
+    if (location.hash === '#notis') { var el=document.getElementById('notis'); if(el) el.scrollIntoView(); }
+
+    // 내 프로젝트 목록 (PM=담당, QA/관리자=관리 대상 전체)
+    var role = (M.currentUser() || {}).role;
+    document.getElementById('projPanelTitle').textContent =
+      (role === 'PM') ? '내 프로젝트' : '내가 관리하는 프로젝트';
+    var myProjs = M.visibleProjects();
+    document.getElementById('myProjects').innerHTML = myProjs.length
+      ? myProjs.map(function(p){
+          return '<tr onclick="location.href=\'project-detail.html?projectId='+p.id+'\'" style="cursor:pointer">'
+            + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
+            + '<td><b>'+e(p.name)+'</b></td>'
+            + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
+            + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div>'
+            +   '<span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
+            + '<td class="num">'+M.stateHtml(p.status)+'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">담당 중인 프로젝트가 없습니다.</td></tr>';
+
+    document.getElementById('notices').innerHTML = M.NOTICES.map(function(n){
+      return '<tr><td>'+e(n.title)+'</td><td class="num muted" style="width:90px">'+e(n.date)+'</td></tr>';
+    }).join('');
+
+    document.getElementById('actions').innerHTML = M.ACTIONS.map(function(a){
+      var st = {'완료':'done','진행':'run','대기':'wait'}[a.state]||'wait';
+      return '<tr><td class="num">'+e(a.id)+'</td><td>'+e(a.title)+'</td>'
+        + '<td class="num">'+e(a.owner)+'</td><td class="num">'+e(a.due)+'</td>'
+        + '<td class="num"><span class="state '+st+'">'+e(a.state)+'</span></td></tr>';
+    }).join('');
+
+    document.getElementById('approvals').innerHTML = M.APPROVALS.map(function(a){
+      var href = a.type === '프로젝트 신청' ? 'project-approval.html' : 'review-report.html';
+      return '<tr><td class="num"><span class="pill">'+e(a.type)+'</span></td><td>'+e(a.target)+'</td>'
+        + '<td class="num">'+e(a.req)+'</td><td class="num">'+e(a.date)+'</td>'
+        + '<td class="num"><a class="btn sm" href="'+href+'" data-role="QA,관리자" data-role-mode="disable">처리</a></td></tr>';
+    }).join('');
+  </script>
+</body>
+</html>

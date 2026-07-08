@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로젝트 신청 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="project" data-page="project-new">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 프로젝트 <span class="sep">›</span> 프로젝트 신청</div>
+    <div class="page-head">
+      <div><h1>프로젝트 신청 (PM 사전 등록)</h1>
+      <p>등록한 프로젝트 정보는 모든 산출물 검증의 <b>1차 기준값</b>으로 사용됩니다. (프로젝트명·코드·기간)</p></div>
+    </div>
+
+    <div class="note" style="margin-bottom:14px;">
+      문서 내용에서 추정한 값보다 <b>여기서 등록한 정보가 우선</b>합니다. 명명규칙·제개정일자 검증의 기준이 됩니다.
+    </div>
+
+    <section class="panel">
+      <div class="p-head"><h2>기본 정보</h2></div>
+      <div class="p-body">
+        <div class="form-tbl">
+          <div class="form-row">
+            <div class="fl">프로젝트명 <span class="req">*</span></div>
+            <div class="fc"><input type="text" id="projName" placeholder="(은행) 투자자문 관리시스템 구축"></div>
+          </div>
+          <div class="form-row">
+            <div class="fl">프로젝트코드 <span class="req">*</span></div>
+            <div class="fc"><input type="text" id="projCode" placeholder="NBIA" style="max-width:220px">
+              <span class="muted" style="margin-left:8px">문서번호·파일명에 사용 (자릿수·형식 자유)</span></div>
+          </div>
+          <div class="form-row">
+            <div class="fl">단위업무구분 코드표</div>
+            <div class="fc"><input type="text" placeholder="(선택) 예: 투자자문 / 운용사분석 …"><span class="muted" style="margin-left:8px">등록 시 문서작성지침서 파싱 결과와 자동 대조</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="p-head"><h2>단계별 기간</h2><span class="more">명명규칙·제·개정일자 검증 기준</span></div>
+      <div class="p-body">
+        <div class="form-tbl">
+          <div class="form-row"><div class="fl">관리단계</div><div class="fc inline">
+            <input type="date" id="mgmtStart"> <span class="muted">~</span> <input type="date" id="mgmtEnd"></div></div>
+          <div class="form-row"><div class="fl">분석단계</div><div class="fc inline">
+            <input type="date" id="anStart"> <span class="muted">~</span> <input type="date" id="anEnd"></div></div>
+          <div class="form-row"><div class="fl">설계단계</div><div class="fc inline">
+            <input type="date" id="dsStart"> <span class="muted">~</span> <input type="date" id="dsEnd"></div></div>
+          <div class="form-row"><div class="fl">구현 · 테스트</div><div class="fc inline">
+            <input type="date"> <span class="muted">~</span> <input type="date">
+            <span class="muted" style="margin-left:8px">(참고용 — MVP 검증 대상 아님)</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="btn-row" style="justify-content:flex-end">
+      <a class="btn sec" href="projects.html">취소</a>
+      <button class="btn" id="createBtn" data-role="PM" data-role-mode="disable">신청 (관리자 승인 요청)</button>
+    </div>
+    <div id="result" style="margin-top:12px"></div>
+  </main>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M = window.MOCK;
+    function dateOrNull(id){ var v=document.getElementById(id).value; return v?v:null; }
+    $('#createBtn').on('click', function(){
+      var name=$('#projName').val().trim(), code=$('#projCode').val().trim();
+      if(!name||!code){ alert('프로젝트명과 코드는 필수입니다.'); return; }
+      var mgmtStart=dateOrNull('mgmtStart'), anStart=dateOrNull('anStart');
+      var payload={ name:name, code:code,
+        managementStart:mgmtStart, managementEnd:dateOrNull('mgmtEnd'),
+        analysisStart:anStart, analysisEnd:dateOrNull('anEnd'),
+        designStart:dateOrNull('dsStart'), designEnd:dateOrNull('dsEnd') };
+
+      // 프론트 목록에 즉시 반영 (현재 PM 소유로 저장 → 목록/드롭다운에 노출)
+      var created = M.addProject({ name:name, code:code,
+        start: mgmtStart || anStart || '', end: dateOrNull('dsEnd') || dateOrNull('anEnd') || '' });
+
+      function successBox(prefix){
+        $('#result').html('<div class="note" style="background:#eef8f1;border-color:#bfe3c9;color:#1f7a43">'
+          + '✔ '+prefix+' — <b>'+M.esc(created.name)+'</b> ('+M.esc(created.code)+' · #'+created.id+' · 승인대기).<br>'
+          + '<span class="soft"><b>관리자 승인 후</b> 산출물 검증을 진행할 수 있습니다. 승인 결과는 알림으로 전달됩니다.</span><br>'
+          + '<div class="btn-row" style="margin-top:10px">'
+          +   '<a class="btn sec" href="projects.html">프로젝트 목록</a>'
+          + '</div></div>');
+      }
+
+      var $b=$('#createBtn').prop('disabled',true).text('신청 중…');
+      $.ajax({ url:'/api/projects', type:'POST', contentType:'application/json', data:JSON.stringify(payload) })
+        .done(function(){ successBox('신청 완료(백엔드 저장)'); })
+        .fail(function(){ successBox('신청 완료(목업 저장 · 백엔드 미연결)'); })
+        .always(function(){ $b.prop('disabled',false).text('신청 (관리자 승인 요청)'); });
+    });
+  </script>
+</body>
+</html>

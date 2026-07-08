@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>단계말 검토결과서 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="report" data-page="review-report">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 결과물 <span class="sep">›</span> 단계말 검토결과서</div>
+    <div class="page-head">
+      <div><h1>단계말 검토결과서</h1><p>프로젝트·단계별 최종 검토 요약과 QA 승인. (HWPX 발급 · 고객사 제출용)</p></div>
+    </div>
+
+    <!-- 프로젝트 / 단계 선택 -->
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
+      <div class="fg"><label>단계</label><select id="stageSel"><option>관리</option><option>분석</option><option>설계</option></select></div>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+    </div>
+
+    <div id="detail"></div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    var u=M.currentUser()||{};
+    var list=M.visibleProjects();
+    var params=new URLSearchParams(location.search);
+
+    document.getElementById('scopeTag').innerHTML=(u.role==='PM')
+      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+
+    if(!list.length){
+      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
+      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+    } else {
+      document.getElementById('projSel').innerHTML=list.map(function(p){
+        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+      var pid=params.get('projectId');
+      var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
+      document.getElementById('projSel').value=String(sel.id);
+      if(['관리','분석','설계'].indexOf(sel.stage)!==-1) document.getElementById('stageSel').value=sel.stage;
+      render();
+      document.getElementById('projSel').addEventListener('change', render);
+      document.getElementById('stageSel').addEventListener('change', render);
+    }
+
+    function curProject(){
+      var id=document.getElementById('projSel').value;
+      return list.filter(function(p){return String(p.id)===id;})[0];
+    }
+    function stageArtifacts(stage){
+      return M.ARTIFACTS.filter(function(a){return a.stage===stage;}).map(function(a){return a.name;});
+    }
+
+    function render(){
+      var p=curProject(); if(!p) return;
+      var stage=document.getElementById('stageSel').value;
+      var revs=M.REVIEWS.filter(function(r){return r.project===p.code && r.stage===stage;});
+      var completed=revs.filter(function(r){return r.status==='COMPLETED';});
+      var byArt={}; revs.forEach(function(r){ if(!byArt[r.code]||r.round>byArt[r.code].round) byArt[r.code]=r; });
+      var arts=Object.keys(byArt).map(function(k){return byArt[k];});
+      var errSum=completed.reduce(function(a,r){return a+(r.error||0);},0);
+      var warnSum=completed.reduce(function(a,r){return a+(r.warn||0);},0);
+      var stageArts=stageArtifacts(stage);
+      var defs=M.defectsFor(p.code).filter(function(d){return stageArts.indexOf(d.artifact)!==-1;});
+      var issued = M.issuedReport(p.id, stage);
+      var canApprove = !issued && arts.length>0 && errSum===0;
+
+      // ── 상단 요약 헤더 ──
+      var html='<section class="panel"><div class="p-body">'
+        + '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+        +   '<div style="flex:1;min-width:200px"><b style="font-size:15px">'+e(p.name)+'</b> '
+        +     '<span class="pill">'+e(p.code)+'</span> <span class="pill g">'+e(stage)+'단계</span></div>'
+        +   '<div><span class="badge 개선">개선 '+errSum+'</span> <span class="badge 권고">권고 '+warnSum+'</span></div>'
+        +   '<div>'+(issued ? '<span class="state done">발급 완료</span> <span class="muted">'+e(issued.by)+' · '+e(issued.at)+'</span>'
+                     : arts.length===0 ? '<span class="state wait">검토 이력 없음</span>'
+                     : (canApprove ? '<span class="state done">QA 승인 가능</span>' : '<span class="state hold">개선 조치 필요</span>'))+'</div>'
+        + '</div></div></section>';
+
+      // ── 검토 항목 (심플: 산출물 · 결과 · 결함내용 · 근거) ──
+      html+='<section class="panel"><div class="p-head"><h2>검토 항목</h2>'
+        + '<span class="more">'+arts.length+'개 산출물</span></div>'
+        + '<div class="p-body flush"><table class="tbl">'
+        + '<thead><tr><th style="width:150px">산출물</th><th class="num" style="width:70px">결과</th><th>내용</th><th style="width:200px">근거 위치</th></tr></thead><tbody>';
+      var rows='';
+      arts.forEach(function(r){
+        var ds=defs.filter(function(d){return d.artifact===r.artifact;});
+        if(r.status==='COMPLETED' && r.passed && !ds.length){
+          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="badge OK">OK</span></td>'
+            +'<td class="muted">필수항목·정합성 검증 통과</td><td class="muted">-</td></tr>';
+        } else if(ds.length){
+          ds.forEach(function(d){
+            rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num">'+M.sevBadge(d.sev)+'</td>'
+              +'<td>'+e(d.desc)+'</td><td class="muted">'+e(d.loc)+'</td></tr>';
+          });
+        } else {
+          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num">'+M.sevBadge(r.error>0?'개선':'권고')+'</td>'
+            +'<td>개선 '+(r.error||0)+' · 권고 '+(r.warn||0)+' <span class="muted">(상세는 시정조치대장)</span></td><td class="muted">-</td></tr>';
+        }
+      });
+      html+= (rows || '<tr><td colspan="4" class="muted" style="text-align:center;padding:22px">해당 단계 검토 결과가 없습니다.</td></tr>');
+      html+='</tbody></table></div></section>';
+
+      // ── 결과물 + QA 승인 (한 줄로 심플하게) ──
+      html+='<section class="panel"><div class="p-head"><h2>결과물 · QA 승인</h2></div><div class="p-body">'
+        + '<div class="btn-row" style="margin-bottom:12px">'
+        +   '<a class="btn sec" href="corrective-actions.html?projectId='+p.id+'">시정조치관리대장</a>'
+        +   '<a class="btn sec" href="#">AI 개선 산출물</a>'
+        +   '<a class="btn sec" href="#">검토결과서(HWPX)</a>'
+        + '</div>'
+        + '<div class="inline" style="gap:14px;border-top:1px solid var(--line);padding-top:12px">'
+        +   '<label class="soft" style="font-weight:700">QA 검증자</label>'
+        +   '<input type="text" id="qaName" placeholder="담당자명" style="max-width:180px"'
+        +      (issued ? ' value="'+e(issued.by)+'" disabled' : '') + '>'
+        +   '<div style="margin-left:auto">'
+        +     '<button class="btn warn" id="approveBtn" data-role="QA" data-role-mode="disable"'+(canApprove?'':' disabled')+'>'
+        +        (issued ? '발급 완료 ('+e(issued.at)+')'
+                 : canApprove ? '승인 및 결과서 발급' : '개선 항목 미해결 — 승인 불가')+'</button>'
+        +   '</div>'
+        + '</div></div></section>';
+
+      document.getElementById('detail').innerHTML=html;
+      if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
+    }
+
+    // 승인 및 결과서 발급 (재렌더마다 버튼이 새로 생기므로 위임 바인딩)
+    document.getElementById('detail').addEventListener('click', function(ev){
+      var btn = ev.target.closest('#approveBtn');
+      if(!btn || btn.disabled) return;
+      var p = curProject(); if(!p) return;
+      var stage = document.getElementById('stageSel').value;
+      var name = (document.getElementById('qaName').value || '').trim() || (u.name || 'QA');
+      if(!confirm('['+p.code+'] '+stage+'단계 검토결과서를 승인·발급하시겠습니까?\nQA 검증자: '+name)) return;
+      M.issueReport(p, stage, name);
+      render();
+      if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+    });
+  </script>
+</body>
+</html>
