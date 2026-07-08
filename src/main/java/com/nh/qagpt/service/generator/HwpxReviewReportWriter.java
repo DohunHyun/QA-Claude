@@ -56,7 +56,7 @@ public class HwpxReviewReportWriter {
             stored(zip, "mimetype", "application/hwp+zip".getBytes(StandardCharsets.US_ASCII));
             deflated(zip, "version.xml", versionXml());
             deflated(zip, "Contents/header.xml", headerXml());
-            deflated(zip, "Contents/section0.xml", sectionXml(lines));
+            deflated(zip, "Contents/section0.xml", sectionXml(result));
             deflated(zip, "Preview/PrvText.txt", prvText(lines));
             deflated(zip, "settings.xml", settingsXml());
             deflated(zip, "META-INF/container.xml", containerXml());
@@ -180,51 +180,41 @@ public class HwpxReviewReportWriter {
         }
         fontfaces.append("</hh:fontfaces>");
 
-        // 실측 borderFill 형태 — id 1~3 (charPr/paraPr가 3을 참조, pageBorderFill이 1을 참조).
+        // 실측 borderFill 형태 — id 1~3. id=2는 표 셀용 SOLID 사면 테두리(실파일과 동일),
+        // id=1·3은 NONE(3=charPr/paraPr 참조, 1=pageBorderFill 참조).
         StringBuilder borderFills = new StringBuilder("<hh:borderFills itemCnt=\"3\">");
         for (int id = 1; id <= 3; id++) {
+            String edge = (id == 2) ? "SOLID" : "NONE";   // id=2만 실선 테두리
+            String edgeWidth = (id == 2) ? "0.12 mm" : "0.1 mm";
             borderFills.append("<hh:borderFill id=\"").append(id)
                     .append("\" threeD=\"0\" shadow=\"0\" centerLine=\"NONE\" breakCellSeparateLine=\"0\">")
                     .append("<hh:slash type=\"NONE\" Crooked=\"0\" isCounter=\"0\"/>")
                     .append("<hh:backSlash type=\"NONE\" Crooked=\"0\" isCounter=\"0\"/>")
-                    .append("<hh:leftBorder type=\"NONE\" width=\"0.1 mm\" color=\"#000000\"/>")
-                    .append("<hh:rightBorder type=\"NONE\" width=\"0.1 mm\" color=\"#000000\"/>")
-                    .append("<hh:topBorder type=\"NONE\" width=\"0.1 mm\" color=\"#000000\"/>")
-                    .append("<hh:bottomBorder type=\"NONE\" width=\"0.1 mm\" color=\"#000000\"/>")
+                    .append("<hh:leftBorder type=\"").append(edge).append("\" width=\"").append(edgeWidth).append("\" color=\"#000000\"/>")
+                    .append("<hh:rightBorder type=\"").append(edge).append("\" width=\"").append(edgeWidth).append("\" color=\"#000000\"/>")
+                    .append("<hh:topBorder type=\"").append(edge).append("\" width=\"").append(edgeWidth).append("\" color=\"#000000\"/>")
+                    .append("<hh:bottomBorder type=\"").append(edge).append("\" width=\"").append(edgeWidth).append("\" color=\"#000000\"/>")
                     .append("<hh:diagonal type=\"SOLID\" width=\"0.1 mm\" color=\"#000000\"/>")
                     .append("<hc:fillBrush><hc:winBrush faceColor=\"none\" hatchColor=\"#FF000000\" alpha=\"0\"/></hc:fillBrush>")
                     .append("</hh:borderFill>");
         }
         borderFills.append("</hh:borderFills>");
 
-        String charProperties = "<hh:charProperties itemCnt=\"1\">"
-                + "<hh:charPr id=\"0\" height=\"1000\" textColor=\"#000000\" shadeColor=\"none\" "
-                + "useFontSpace=\"0\" useKerning=\"0\" symMark=\"NONE\" borderFillIDRef=\"3\">"
-                + "<hh:fontRef hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
-                + "<hh:ratio hangul=\"100\" latin=\"100\" hanja=\"100\" japanese=\"100\" other=\"100\" symbol=\"100\" user=\"100\"/>"
-                + "<hh:spacing hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
-                + "<hh:relSz hangul=\"100\" latin=\"100\" hanja=\"100\" japanese=\"100\" other=\"100\" symbol=\"100\" user=\"100\"/>"
-                + "<hh:offset hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
-                + "</hh:charPr></hh:charProperties>";
+        // charPr: 0=본문(1000), 1=제목(2000 bold), 2=표머리(1000 bold). bold는 offset 뒤 <hh:bold/>(실측).
+        String charProperties = "<hh:charProperties itemCnt=\"3\">"
+                + charPr(0, 1000, false)
+                + charPr(1, 2000, true)
+                + charPr(2, 1000, true)
+                + "</hh:charProperties>";
 
         String tabProperties = "<hh:tabProperties itemCnt=\"1\">"
                 + "<hh:tabPr id=\"0\" autoTabLeft=\"0\" autoTabRight=\"0\"/></hh:tabProperties>";
 
-        String paraProperties = "<hh:paraProperties itemCnt=\"1\">"
-                + "<hh:paraPr id=\"0\" tabPrIDRef=\"0\" condense=\"0\" fontLineHeight=\"0\" snapToGrid=\"1\" "
-                + "suppressLineNumbers=\"0\" checked=\"0\">"
-                + "<hh:align horizontal=\"JUSTIFY\" vertical=\"BASELINE\"/>"
-                + "<hh:heading type=\"NONE\" idRef=\"0\" level=\"0\"/>"
-                + "<hh:breakSetting breakLatinWord=\"KEEP_WORD\" breakNonLatinWord=\"KEEP_WORD\" widowOrphan=\"0\" "
-                + "keepWithNext=\"0\" keepLines=\"0\" pageBreakBefore=\"0\" lineWrap=\"BREAK\"/>"
-                + "<hh:autoSpacing eAsianEng=\"0\" eAsianNum=\"0\"/>"
-                + "<hh:margin><hc:intent value=\"0\" unit=\"HWPUNIT\"/><hc:left value=\"0\" unit=\"HWPUNIT\"/>"
-                + "<hc:right value=\"0\" unit=\"HWPUNIT\"/><hc:prev value=\"0\" unit=\"HWPUNIT\"/>"
-                + "<hc:next value=\"0\" unit=\"HWPUNIT\"/></hh:margin>"
-                + "<hh:lineSpacing type=\"PERCENT\" value=\"160\" unit=\"HWPUNIT\"/>"
-                + "<hh:border borderFillIDRef=\"3\" offsetLeft=\"0\" offsetRight=\"0\" offsetTop=\"0\" "
-                + "offsetBottom=\"0\" connect=\"0\" ignoreMargin=\"0\"/>"
-                + "</hh:paraPr></hh:paraProperties>";
+        // paraPr: 0=양쪽정렬(본문), 1=가운데정렬(제목)
+        String paraProperties = "<hh:paraProperties itemCnt=\"2\">"
+                + paraPr(0, "JUSTIFY")
+                + paraPr(1, "CENTER")
+                + "</hh:paraProperties>";
 
         String styles = "<hh:styles itemCnt=\"1\">"
                 + "<hh:style id=\"0\" type=\"PARA\" name=\"바탕글\" engName=\"Normal\" paraPrIDRef=\"0\" "
@@ -238,8 +228,42 @@ public class HwpxReviewReportWriter {
                 + "</hh:refList></hh:head>");
     }
 
-    /** 실측: 첫 문단 첫 run에 secPr(A4 용지)+ctrl(colPr 1단) — 한컴이 요구하는 섹션 최소 설정. */
-    private byte[] sectionXml(List<String> lines) {
+    /** 글자모양 정의 (실측 자식 순서: fontRef→ratio→spacing→relSz→offset→[bold]). */
+    private String charPr(int id, int height, boolean bold) {
+        return "<hh:charPr id=\"" + id + "\" height=\"" + height + "\" textColor=\"#000000\" shadeColor=\"none\" "
+                + "useFontSpace=\"0\" useKerning=\"0\" symMark=\"NONE\" borderFillIDRef=\"3\">"
+                + "<hh:fontRef hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
+                + "<hh:ratio hangul=\"100\" latin=\"100\" hanja=\"100\" japanese=\"100\" other=\"100\" symbol=\"100\" user=\"100\"/>"
+                + "<hh:spacing hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
+                + "<hh:relSz hangul=\"100\" latin=\"100\" hanja=\"100\" japanese=\"100\" other=\"100\" symbol=\"100\" user=\"100\"/>"
+                + "<hh:offset hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
+                + (bold ? "<hh:bold/>" : "")
+                + "</hh:charPr>";
+    }
+
+    /** 문단모양 정의. horizontal: JUSTIFY(본문)/CENTER(제목). */
+    private String paraPr(int id, String horizontal) {
+        return "<hh:paraPr id=\"" + id + "\" tabPrIDRef=\"0\" condense=\"0\" fontLineHeight=\"0\" snapToGrid=\"1\" "
+                + "suppressLineNumbers=\"0\" checked=\"0\">"
+                + "<hh:align horizontal=\"" + horizontal + "\" vertical=\"BASELINE\"/>"
+                + "<hh:heading type=\"NONE\" idRef=\"0\" level=\"0\"/>"
+                + "<hh:breakSetting breakLatinWord=\"KEEP_WORD\" breakNonLatinWord=\"KEEP_WORD\" widowOrphan=\"0\" "
+                + "keepWithNext=\"0\" keepLines=\"0\" pageBreakBefore=\"0\" lineWrap=\"BREAK\"/>"
+                + "<hh:autoSpacing eAsianEng=\"0\" eAsianNum=\"0\"/>"
+                + "<hh:margin><hc:intent value=\"0\" unit=\"HWPUNIT\"/><hc:left value=\"0\" unit=\"HWPUNIT\"/>"
+                + "<hc:right value=\"0\" unit=\"HWPUNIT\"/><hc:prev value=\"0\" unit=\"HWPUNIT\"/>"
+                + "<hc:next value=\"0\" unit=\"HWPUNIT\"/></hh:margin>"
+                + "<hh:lineSpacing type=\"PERCENT\" value=\"160\" unit=\"HWPUNIT\"/>"
+                + "<hh:border borderFillIDRef=\"3\" offsetLeft=\"0\" offsetRight=\"0\" offsetTop=\"0\" "
+                + "offsetBottom=\"0\" connect=\"0\" ignoreMargin=\"0\"/>"
+                + "</hh:paraPr>";
+    }
+
+    /**
+     * 본문 렌더 — 제목(굵게·크게·가운데) + 문서정보/요약 문단 + 항목별 결과 표 + 최종평가/QA 서명란.
+     * 첫 문단(제목) 첫 run에 secPr(A4 용지)+colPr(1단)을 부착한다(한컴 필수 패턴, 실측).
+     */
+    private byte[] sectionXml(ReviewResult result) {
         String secPr = "<hp:secPr id=\"\" textDirection=\"HORIZONTAL\" spaceColumns=\"1130\" tabStop=\"8000\" "
                 + "outlineShapeIDRef=\"1\" memoShapeIDRef=\"0\" textVerticalWidthHead=\"0\" masterPageCnt=\"0\">"
                 + "<hp:grid lineGrid=\"0\" charGrid=\"0\" wonggojiFormat=\"0\"/>"
@@ -270,21 +294,161 @@ public class HwpxReviewReportWriter {
         String colPr = "<hp:ctrl><hp:colPr id=\"\" type=\"NEWSPAPER\" layout=\"LEFT\" colCount=\"1\" "
                 + "sameSz=\"1\" sameGap=\"0\"/></hp:ctrl>";
 
+        List<Defect> defects = result.getDefects();
+        long improvements = defects.stream().filter(d -> d.getSeverity() == Severity.IMPROVEMENT).count();
+        long recommendations = defects.size() - improvements;
+        String verdict = result.isPassed() ? "적합 — 단계 통과"
+                : (result.isQaException() ? "부적합 — QA 예외 승인으로 통과 처리" : "부적합 — 개선 필요");
+
         StringBuilder sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>");
         sb.append("<hs:sec ").append(NS_ALL).append(">");
-        for (int i = 0; i < lines.size(); i++) {
-            sb.append("<hp:p id=\"").append(i)
-              .append("\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\">")
-              .append("<hp:run charPrIDRef=\"0\">");
-            if (i == 0) {
-                sb.append(secPr).append(colPr); // 첫 문단에 섹션 설정(실측 패턴)
-            }
-            sb.append("<hp:t>").append(escape(lines.get(i))).append("</hp:t>")
-              .append("</hp:run></hp:p>");
+
+        Counter pid = new Counter();
+        // 제목(굵게·크게·가운데) — 첫 문단 첫 run에 섹션 설정 부착(실측 필수 패턴)
+        sb.append(para(pid.next(), "단계말 검토결과서", 1, 1, secPr + colPr));
+        sb.append(para(pid.next(), "", 0, 1, null));
+
+        // 문서 정보
+        String pName = safe(result.getProject() == null ? null : result.getProject().getName());
+        String pCode = safe(result.getProject() == null ? null : result.getProject().getCode());
+        sb.append(para(pid.next(), "프로젝트: " + pName + " (" + pCode + ")", 0, 0, null));
+        sb.append(para(pid.next(), "검증 단계: " + (result.getStage() == null ? "" : result.getStage().getLabel()), 0, 0, null));
+        sb.append(para(pid.next(), "검토자: " + REVIEWER, 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 1. 검증 대상 산출물
+        sb.append(para(pid.next(), "1. 검증 대상 산출물", 2, 0, null));
+        sb.append(para(pid.next(), "- " + artifactLabel(result.getDocument()) + " / "
+                + safe(result.getDocument() == null ? null : result.getDocument().getFileName()), 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 2. 단계 결과 요약
+        sb.append(para(pid.next(), "2. 단계 결과 요약", 2, 0, null));
+        sb.append(para(pid.next(), "- 총 " + defects.size() + "건 (개선 " + improvements + ", 권고 " + recommendations + ")", 0, 0, null));
+        sb.append(para(pid.next(), "- 최종 결과: " + (result.isPassed() ? "적합(통과)" : "부적합"), 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 3. 항목별 결과 — 표(부적합 없으면 OK 문단)
+        sb.append(para(pid.next(), "3. 항목별 결과", 2, 0, null));
+        if (defects.isEmpty()) {
+            sb.append(para(pid.next(), "부적합 없음 (OK)", 0, 0, null));
+        } else {
+            sb.append(defectTable(pid.next(), defects));
         }
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 4. 최종 평가
+        sb.append(para(pid.next(), "4. 최종 평가", 2, 0, null));
+        sb.append(para(pid.next(), "- " + verdict, 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 5. QA 승인
+        sb.append(para(pid.next(), "5. QA 승인", 2, 0, null));
+        sb.append(para(pid.next(), "- QA 검토자: ______________    서명: ______________    승인일: __________", 0, 0, null));
+        sb.append(para(pid.next(), "- QA 승인 여부: " + (result.isQaApproved() ? "승인" : "미승인")
+                + (result.isQaException() ? " (예외 승인)" : ""), 0, 0, null));
+
         sb.append("</hs:sec>");
         return utf8(sb.toString());
+    }
+
+    /** 단순 문단. firstRunExtra는 첫 run 앞에 삽입되는 컨트롤(섹션설정 등, 없으면 null). */
+    private String para(int id, String text, int charPrId, int paraPrId, String firstRunExtra) {
+        return "<hp:p id=\"" + id + "\" paraPrIDRef=\"" + paraPrId + "\" styleIDRef=\"0\" "
+                + "pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"" + charPrId + "\">"
+                + (firstRunExtra == null ? "" : firstRunExtra)
+                + "<hp:t>" + escape(text) + "</hp:t></hp:run></hp:p>";
+    }
+
+    /** 결함 목록을 한컴 표(hp:tbl)로 렌더. run 안 inline 객체 구조·셀 메타(cellAddr/Span/Sz/Margin)는 실측 준수. */
+    private String defectTable(int paraId, List<Defect> defects) {
+        String[] headers = {"No", "판정", "결함유형", "관점", "근거위치", "결함내용", "개선 권고"};
+        int[] widths = {2400, 3800, 6600, 4200, 8800, 11824, 10000}; // 합계 47624 (본문 폭)
+        int totalWidth = 0;
+        for (int w : widths) {
+            totalWidth += w;
+        }
+        int rowHeight = 2800;
+        int rowCnt = defects.size() + 1; // 헤더 포함
+        int tableHeight = rowCnt * rowHeight;
+
+        StringBuilder tbl = new StringBuilder();
+        tbl.append("<hp:tbl id=\"1\" zOrder=\"0\" numberingType=\"TABLE\" textWrap=\"TOP_AND_BOTTOM\" ")
+           .append("textFlow=\"BOTH_SIDES\" lock=\"0\" dropcapstyle=\"None\" pageBreak=\"CELL\" repeatHeader=\"1\" ")
+           .append("rowCnt=\"").append(rowCnt).append("\" colCnt=\"").append(widths.length)
+           .append("\" cellSpacing=\"0\" borderFillIDRef=\"2\" noAdjust=\"0\">")
+           .append("<hp:sz width=\"").append(totalWidth).append("\" widthRelTo=\"ABSOLUTE\" height=\"")
+           .append(tableHeight).append("\" heightRelTo=\"ABSOLUTE\" protect=\"0\"/>")
+           .append("<hp:pos treatAsChar=\"1\" affectLSpacing=\"0\" flowWithText=\"1\" allowOverlap=\"0\" ")
+           .append("holdAnchorAndSO=\"0\" vertRelTo=\"PARA\" horzRelTo=\"COLUMN\" vertAlign=\"TOP\" ")
+           .append("horzAlign=\"LEFT\" vertOffset=\"0\" horzOffset=\"0\"/>")
+           .append("<hp:outMargin left=\"0\" right=\"0\" top=\"0\" bottom=\"0\"/>")
+           .append("<hp:inMargin left=\"510\" right=\"510\" top=\"141\" bottom=\"141\"/>");
+
+        // 헤더 행 (굵게·가운데)
+        tbl.append("<hp:tr>");
+        for (int c = 0; c < headers.length; c++) {
+            tbl.append(cell(headers[c], c, 0, widths[c], rowHeight, true));
+        }
+        tbl.append("</hp:tr>");
+
+        // 데이터 행
+        int r = 1;
+        int no = 1;
+        for (Defect d : defects) {
+            String[] vals = {
+                    String.valueOf(no++),
+                    d.getSeverity() == null ? "" : d.getSeverity().getLabel(),
+                    d.getDefectType() == null ? "" : d.getDefectType().getLabel(),
+                    d.getPerspective() == null ? "" : d.getPerspective().getLabel(),
+                    location(d),
+                    safe(d.getDescription()),
+                    safe(d.getImprovementGuide())
+            };
+            tbl.append("<hp:tr>");
+            for (int c = 0; c < vals.length; c++) {
+                tbl.append(cell(vals[c], c, r, widths[c], rowHeight, false));
+            }
+            tbl.append("</hp:tr>");
+            r++;
+        }
+        tbl.append("</hp:tbl>");
+
+        // 표는 문단의 run 안 inline 객체로 배치
+        return "<hp:p id=\"" + paraId + "\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" "
+                + "columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"0\">" + tbl + "</hp:run>"
+                + "<hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" "
+                + "baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"" + totalWidth + "\" flags=\"393216\"/>"
+                + "</hp:linesegarray></hp:p>";
+    }
+
+    /** 표 셀 1개. header면 굵게(charPr=2)·가운데(paraPr=1), 데이터면 본문(charPr=0)·양쪽(paraPr=0). */
+    private String cell(String text, int colAddr, int rowAddr, int width, int height, boolean header) {
+        int charPrId = header ? 2 : 0;
+        int paraPrId = header ? 1 : 0;
+        int horzSize = Math.max(width - 1020, 500); // 셀 여백(좌우 510) 제외 텍스트 폭 힌트
+        return "<hp:tc name=\"\" header=\"" + (header ? 1 : 0) + "\" hasMargin=\"0\" protect=\"0\" "
+                + "editable=\"0\" dirty=\"0\" borderFillIDRef=\"2\">"
+                + "<hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" "
+                + "linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\">"
+                + "<hp:p id=\"0\" paraPrIDRef=\"" + paraPrId + "\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\">"
+                + "<hp:run charPrIDRef=\"" + charPrId + "\"><hp:t>" + escape(text) + "</hp:t></hp:run>"
+                + "<hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" "
+                + "baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"" + horzSize + "\" flags=\"393216\"/></hp:linesegarray>"
+                + "</hp:p></hp:subList>"
+                + "<hp:cellAddr colAddr=\"" + colAddr + "\" rowAddr=\"" + rowAddr + "\"/>"
+                + "<hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/>"
+                + "<hp:cellSz width=\"" + width + "\" height=\"" + height + "\"/>"
+                + "<hp:cellMargin left=\"510\" right=\"510\" top=\"141\" bottom=\"141\"/></hp:tc>";
+    }
+
+    /** 문단 id 카운터 (top-level hp:p 순번). */
+    private static final class Counter {
+        private int n = 0;
+        int next() {
+            return n++;
+        }
     }
 
     private byte[] settingsXml() {
