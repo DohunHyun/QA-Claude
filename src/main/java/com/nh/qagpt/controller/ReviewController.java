@@ -1,5 +1,6 @@
 package com.nh.qagpt.controller;
 
+import com.nh.qagpt.domain.Document;
 import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.dto.ReviewResponse;
 import com.nh.qagpt.exception.QaApprovalException;
@@ -8,6 +9,7 @@ import com.nh.qagpt.repository.DefectRepository;
 import com.nh.qagpt.repository.ReviewResultRepository;
 import com.nh.qagpt.service.ReviewOrchestrator;
 import com.nh.qagpt.service.generator.ResultGenerator;
+import com.nh.qagpt.service.storage.FileStorageService;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -30,18 +33,21 @@ public class ReviewController {
     private final ReviewResultRepository reviewResultRepository;
     private final DefectRepository defectRepository;
     private final ResultGenerator resultGenerator;
+    private final FileStorageService fileStorage;
 
     public ReviewController(ReviewOrchestrator orchestrator,
                             ReviewResultRepository reviewResultRepository,
                             DefectRepository defectRepository,
-                            ResultGenerator resultGenerator) {
+                            ResultGenerator resultGenerator,
+                            FileStorageService fileStorage) {
         this.orchestrator = orchestrator;
         this.reviewResultRepository = reviewResultRepository;
         this.defectRepository = defectRepository;
         this.resultGenerator = resultGenerator;
+        this.fileStorage = fileStorage;
     }
 
-    /** 검토 트리거 — 백그라운드(reviewExecutor)에서 4-Phase 검증 실행. 즉시 202 응답. */
+    /** 검토 트리거 — 백그라운드(reviewExecutor)에서 4-Phase 검증 실행. 즉시 202 응답 (spec §10.1). */
     @PostMapping
     public ResponseEntity<Map<String, Object>> trigger(@RequestParam Long documentId) {
         orchestrator.review(documentId);
@@ -57,6 +63,14 @@ public class ReviewController {
                 .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
     }
 
+    /** 비동기 검증 진행도 폴링 — 산출물 기준 검토 목록(RUNNING→COMPLETED/FAILED). */
+    @GetMapping("/by-document/{documentId}")
+    public List<ReviewResponse> byDocument(@PathVariable Long documentId) {
+        return reviewResultRepository.findByDocumentId(documentId).stream()
+                .map(r -> ReviewResponse.from(r, defectRepository.countByReviewResultId(r.getId())))
+                .toList();
+    }
+
     /** [S4] 시정조치관리대장(.xlsx) 다운로드. lazy 연관(project/document/defects) 로드 위해 트랜잭션 내 생성. */
     @GetMapping("/{id}/corrective-action-ledger")
     @Transactional(readOnly = true)
@@ -69,9 +83,26 @@ public class ReviewController {
     }
 
     /**
-     * [S5] AI 개선 산출물(.xlsx) 다운로드. 원본 파일 저장 연동 전이므로 원본을 함께 업로드받아
-     * 개선(ERROR) 위치에 [개선] 태그를 달아 반환한다(단계별 1개).
+     * [S5] AI 개선 산출물(.xlsx) 다운로드 — 저장된 원본(storagePath)으로부터 생성 (재업로드 불필요).
+     * 개선(ERROR) 위치에 [개선] 태그를 달아 반환한다(단계별 1개, spec §4.3).
      */
+    @GetMapping("/{id}/improved-artifact")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadImprovedArtifactFromStorage(@PathVariable Long id) {
+        ReviewResult result = reviewResultRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+        Document doc = result.getDocument();
+        if (doc == null || !fileStorage.exists(doc.getStoragePath())) {
+            throw new ResourceNotFoundException("저장된 원본이 없습니다. 원본 파일과 함께 POST로 요청하세요.");
+        }
+        byte[] original = fileStorage.load(doc.getStoragePath());
+        byte[] improved = resultGenerator.generateImprovedArtifact(result, original, doc.getFileName());
+
+        String base = doc.getFileName() == null ? "artifact.xlsx" : doc.getFileName();
+        return xlsxResponse(improved, "개선_" + base);
+    }
+
+    /** [S5] AI 개선 산출물(.xlsx) 다운로드 — 원본을 함께 업로드하는 폴백 경로. */
     @PostMapping(value = "/{id}/improved-artifact", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional(readOnly = true)
     public ResponseEntity<Resource> downloadImprovedArtifact(
