@@ -65,18 +65,39 @@ class HwpxReviewReportTest {
     }
 
     @Test
-    void OWPML_패키지_구조로_생성된다() throws Exception {
+    void OWPML_패키지_구조로_생성된다_한컴실파일_동형() throws Exception {
         Map<String, String> entries = readZip(writer.write(resultWithDefect()));
+        // 실측: 한글 9.6 생성 패키지와 동일 엔트리 구성 (manifest.xml 없음, PrvText 있음)
         assertThat(entries).containsKeys(
                 "mimetype",
                 "version.xml",
                 "META-INF/container.xml",
-                "META-INF/manifest.xml",
                 "Contents/content.hpf",
                 "Contents/header.xml",
                 "Contents/section0.xml",
+                "Preview/PrvText.txt",
                 "settings.xml");
+        assertThat(entries).doesNotContainKey("META-INF/manifest.xml");
         assertThat(entries.get("mimetype")).isEqualTo("application/hwp+zip");
+        // content.hpf 루트는 opf:package 직접 (hpf:HWPML 래퍼 없음 — 실측)
+        assertThat(entries.get("Contents/content.hpf")).contains("<opf:package").doesNotContain("<hpf:HWPML");
+        // container에 PrvText 이중 rootfile
+        assertThat(entries.get("META-INF/container.xml")).contains("Preview/PrvText.txt");
+        // 미리보기 텍스트에 본문 포함
+        assertThat(entries.get("Preview/PrvText.txt")).contains("단계말 검토결과서");
+    }
+
+    @Test
+    void 헤더_참조무결성과_섹션설정_한컴규격() throws Exception {
+        Map<String, String> entries = readZip(writer.write(resultWithDefect()));
+        String header = entries.get("Contents/header.xml");
+        String section = entries.get("Contents/section0.xml");
+        // charPr/paraPr가 참조하는 borderFill id=3, tabPr id=0이 실제로 선언됨
+        assertThat(header).contains("borderFillIDRef=\"3\"").contains("<hh:borderFill id=\"3\"");
+        assertThat(header).contains("tabPrIDRef=\"0\"").contains("<hh:tabPr id=\"0\"");
+        assertThat(header).contains("secCnt=\"1\"").contains("<hh:beginNum");
+        // 첫 문단 첫 run에 용지(secPr)+단(colPr) 설정 (실측 필수 패턴)
+        assertThat(section).contains("<hp:secPr").contains("<hp:pagePr").contains("<hp:colPr");
     }
 
     @Test
