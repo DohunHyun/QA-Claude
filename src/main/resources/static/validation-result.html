@@ -8,7 +8,7 @@
 </head>
 <body data-nav="validate" data-page="validation-result">
   <main class="main">
-    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 산출물 검증 <span class="sep">›</span> 검증 결과</div>
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 검증 결과</div>
     <div class="page-head">
       <div><h1>검증 결과</h1><p>프로젝트·검토 회차를 선택하면 해당 검증의 결함·Phase 결과·생성 결과물을 조회합니다.</p></div>
     </div>
@@ -118,7 +118,7 @@
         + '</div>';
 
       if(running){
-        html += '<div class="note">이 검증은 아직 진행 중입니다. 완료 후 결함·결과물이 표시됩니다. <a href="validation-progress.html?projectId='+p.id+'">진행도 보기 ›</a></div>';
+        html += '<div class="note">이 검증은 아직 진행 중입니다. 완료 후 결함·결과물이 표시됩니다. <a href="validation-progress.html?projectId='+p.id+'">검토 현황 보기 ›</a></div>';
         document.getElementById('detail').innerHTML=html;
         return;
       }

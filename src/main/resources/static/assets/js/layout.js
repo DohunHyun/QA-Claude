@@ -39,11 +39,10 @@
       ]
     },
     {
-      key: 'validate', label: '산출물 검증', href: 'validation-upload.html', roles: ['PM','QA'],
+      key: 'validate', label: 'AI 검증', href: 'validation-upload.html', roles: ['PM','QA'],
       side: [
         { g: '검증', items: [
-          { p: 'validation-upload', label: '산출물 업로드', href: 'validation-upload.html', roles: ['PM','QA'] },
-          { p: 'validation-progress', label: '검토 진행도', href: 'validation-progress.html' },
+          { p: 'validation-progress', label: '검토 현황', href: 'validation-progress.html' },
           { p: 'validation-result', label: '검증 결과', href: 'validation-result.html' }
         ]},
         { g: '단계별 검증', items: [
@@ -63,9 +62,9 @@
       ]
     },
     {
-      key: 'report', label: '결과물', href: 'review-report.html', roles: ['PM','QA','관리자','고객사'],
+      key: 'report', label: '검토결과서', href: 'review-report.html', roles: ['PM','QA','관리자','고객사'],
       side: [
-        { g: '결과물', items: [
+        { g: '검토결과서', items: [
           { p: 'review-report', label: '단계말 검토결과서', href: 'review-report.html' },
           { p: 'improved', label: 'AI 개선 산출물', href: 'review-report.html#improved' }
         ]}
@@ -135,7 +134,6 @@
 
   var sidebar =
     '<aside class="side">' +
-      '<div class="search"><input type="text" placeholder="메뉴·산출물 검색"><button>검색</button></div>' +
       side +
     '</aside>';
 
