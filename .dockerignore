@@ -1,0 +1,9 @@
+.git
+.gradle
+build
+uploads
+local-samples
+*.log
+.DS_Store
+.idea
+.vscode
