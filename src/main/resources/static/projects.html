@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로젝트 목록 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="project" data-page="projects">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 프로젝트 <span class="sep">›</span> 프로젝트 목록</div>
+    <div class="page-head">
+      <div><h1>프로젝트 목록</h1><p>등록된 프로젝트의 단계 진행 상황과 검증 현황을 조회합니다.</p></div>
+      <a class="btn" href="project-new.html" data-role="PM">＋ 프로젝트 신청</a>
+    </div>
+
+    <div class="filterbar">
+      <div class="fg"><label>상태</label>
+        <select><option>전체</option><option>진행(ACTIVE)</option><option>승인(APPROVED)</option><option>승인대기(REQUESTED)</option></select>
+      </div>
+      <div class="fg"><label>단계</label>
+        <select><option>전체</option><option>관리</option><option>분석</option><option>설계</option></select>
+      </div>
+      <div class="fg"><label>검색</label><input type="text" placeholder="프로젝트명 · 코드"></div>
+      <button class="btn sm">조회</button>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+      <span class="muted">총 <b id="cnt">0</b>건</span>
+    </div>
+
+    <section class="panel">
+      <div class="p-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl">
+            <thead><tr>
+              <th class="num">No</th><th class="num">코드</th><th>프로젝트명</th><th class="num">PM</th>
+              <th class="num">현재단계</th><th style="width:180px">진행률</th><th class="num">기간</th><th class="num">상태</th><th class="num">이동</th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M = window.MOCK, e = M.esc;
+    var u = M.currentUser() || {};
+    var list = M.visibleProjects();
+    document.getElementById('cnt').textContent = list.length;
+    document.getElementById('scopeTag').innerHTML = (u.role === 'PM')
+      ? '<span class="pill g">내 프로젝트만</span> '
+      : '<span class="pill g">전체 프로젝트</span> ';
+    if (!list.length) {
+      document.getElementById('rows').innerHTML =
+        '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">담당 중인 프로젝트가 없습니다.</td></tr>';
+    } else
+    document.getElementById('rows').innerHTML = list.map(function(p,i){
+      return '<tr>'
+        + '<td class="num">'+(i+1)+'</td>'
+        + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
+        + '<td><a href="project-detail.html?projectId='+p.id+'"><b>'+e(p.name)+'</b></a></td>'
+        + '<td class="num">'+e(p.pm)+'</td>'
+        + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
+        + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div><span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
+        + '<td class="num muted" style="font-size:11px">'+e(p.start)+'<br>~ '+e(p.end)+'</td>'
+        + '<td class="num">'+M.stateHtml(p.status)+'</td>'
+        + '<td class="num"><a class="btn sm sec" href="project-detail.html?projectId='+p.id+'">현황</a></td>'
+        + '</tr>';
+    }).join('');
+  </script>
+</body>
+</html>

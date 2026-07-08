@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>검증 결과 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="validate" data-page="validation-result">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 산출물 검증 <span class="sep">›</span> 검증 결과</div>
+    <div class="page-head">
+      <div><h1>검증 결과</h1><p>프로젝트·검토 회차를 선택하면 해당 검증의 결함·Phase 결과·생성 결과물을 조회합니다.</p></div>
+    </div>
+
+    <!-- 프로젝트 / 검토 선택 -->
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
+      <div class="fg"><label>검토 회차</label><select id="revSel" style="max-width:340px"></select></div>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+    </div>
+
+    <div id="detail"></div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    var u=M.currentUser()||{};
+    var list=M.visibleProjects();
+    var params=new URLSearchParams(location.search);
+
+    document.getElementById('scopeTag').innerHTML = (u.role==='PM')
+      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+
+    if(!list.length){
+      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
+      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+    } else {
+      document.getElementById('projSel').innerHTML=list.map(function(p){
+        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+
+      // 초기 프로젝트: ?reviewId 로 역추적 → ?projectId → 첫 프로젝트
+      var ridParam=params.get('reviewId');
+      var initProj=list[0];
+      if(ridParam){
+        var rv=M.REVIEWS.filter(function(r){return String(r.id)===String(ridParam);})[0];
+        if(rv){ var pp=list.filter(function(p){return p.code===rv.project;})[0]; if(pp) initProj=pp; }
+      } else {
+        var pid=params.get('projectId');
+        initProj=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
+      }
+      document.getElementById('projSel').value=String(initProj.id);
+      fillReviews(ridParam);
+
+      document.getElementById('projSel').addEventListener('change', function(){ fillReviews(null); });
+      document.getElementById('revSel').addEventListener('change', renderSelected);
+    }
+
+    function curProject(){
+      var id=document.getElementById('projSel').value;
+      return list.filter(function(p){return String(p.id)===id;})[0];
+    }
+
+    function projReviews(){
+      var p=curProject(); if(!p) return [];
+      return M.REVIEWS.filter(function(r){return r.project===p.code;})
+                      .slice().sort(function(a,b){return b.id-a.id;});
+    }
+
+    function fillReviews(preselectId){
+      var revs=projReviews();
+      var sel=document.getElementById('revSel');
+      if(!revs.length){
+        sel.innerHTML='<option value="">검증 이력 없음</option>';
+        document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">선택한 프로젝트에 검증 이력이 없습니다.</div></section>';
+        return;
+      }
+      sel.innerHTML=revs.map(function(r){
+        return '<option value="'+r.id+'">#'+r.id+' · '+e(r.artifact)+' ('+e(r.code)+') · '+r.round+'회차 · '+e(r.date)+'</option>';
+      }).join('');
+      sel.value = (preselectId && revs.some(function(r){return String(r.id)===String(preselectId);}))
+        ? String(preselectId) : String(revs[0].id);
+      renderSelected();
+    }
+
+    function renderSelected(){
+      var id=document.getElementById('revSel').value;
+      var r=M.REVIEWS.filter(function(x){return String(x.id)===id;})[0];
+      var p=curProject();
+      if(r) render(r,p);
+    }
+
+    function render(r,p){
+      var passed = r.status==='COMPLETED' && r.passed;
+      var running = r.status==='RUNNING';
+      var defs = M.DEFECTS.filter(function(d){ return d.artifact===r.artifact; });
+
+      var verdictBadge = running ? '<span class="state run">검증중</span>'
+        : (passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>');
+
+      var html =
+        '<div class="page-head" style="margin-bottom:14px">'
+        + '<div><h1 style="font-size:17px">'+e(r.artifact)+' ('+e(r.code)+') <span class="pill">#'+r.id+'</span></h1>'
+        + '<p>'+e(p.code)+' · '+e(r.stage)+'단계 · '+r.round+'회차 · 검증일 '+e(r.date)+' · 검토자 AI품질검토봇</p></div>'
+        + '<div class="btn-row"><a class="btn sec" href="validation-upload.html?projectId='+p.id+'" data-role="PM">재검증</a>'
+        + '<a class="btn" href="corrective-actions.html">시정조치대장</a></div></div>';
+
+      // KPI
+      html += '<div class="kpis">'
+        + '<div class="kpi err"><div class="k-label">개선 (ERROR)</div><div class="k-value">'+(r.error||0)+'<small> 건</small></div></div>'
+        + '<div class="kpi warn"><div class="k-label">권고 (WARNING)</div><div class="k-value">'+(r.warn||0)+'<small> 건</small></div></div>'
+        + '<div class="kpi"><div class="k-label">상태</div><div class="k-value" style="font-size:18px">'+M.stateHtml(r.status)+'</div></div>'
+        + '<div class="kpi"><div class="k-label">판정</div><div class="k-value" style="font-size:18px">'+verdictBadge+'</div></div>'
+        + '</div>';
+
+      if(running){
+        html += '<div class="note">이 검증은 아직 진행 중입니다. 완료 후 결함·결과물이 표시됩니다. <a href="validation-progress.html?projectId='+p.id+'">진행도 보기 ›</a></div>';
+        document.getElementById('detail').innerHTML=html;
+        return;
+      }
+
+      // Phase 결과
+      html += '<section class="panel"><div class="p-head"><h2>Phase별 결과</h2><span class="more">§7.2 4-Phase</span></div><div class="p-body"><div class="steps">'
+        + phaseCell(1,'표준', r.error>0)
+        + phaseCell(2,'요구사항', false)
+        + phaseCell(3,'정합성', r.error>1)
+        + phaseCell(4,'결과물 생성', false, true)
+        + '</div></div></section>';
+
+      // 결함 상세
+      if(passed){
+        html += '<section class="panel"><div class="p-body"><span class="state done" style="font-size:14px">✔ 결함 없음 · 통과</span>'
+          + (r.warn>0 ? ' <span class="muted">(권고 '+r.warn+'건은 시정조치대장 참고)</span>' : '') + '</div></section>';
+      } else {
+        html += '<section class="panel"><div class="p-head"><h2>결함 상세</h2>'
+          + '<span class="legend"><span>판정: <span class="badge 개선">개선</span> <span class="badge 권고">권고</span></span></span></div>'
+          + '<div class="p-body flush"><div class="tbl-scroll"><table class="tbl">'
+          + '<thead><tr><th class="num">No</th><th class="num">판정</th><th class="num">결함유형</th><th class="num">관점</th><th>근거위치</th><th>결함내용</th><th>개선방향</th></tr></thead><tbody>';
+        html += defs.length
+          ? defs.map(function(d){
+              return '<tr><td class="num">'+e(d.no)+'</td><td class="num">'+M.sevBadge(d.sev)+'</td>'
+                +'<td class="num">'+e(d.dtype)+'</td><td class="num"><span class="pill g">'+e(d.persp)+'</span></td>'
+                +'<td>'+e(d.loc)+'</td><td>'+e(d.desc)+'</td><td class="muted">'+e(d.plan)+'</td></tr>';
+            }).join('')
+          : '<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">개선 '+(r.error||0)+'건 · 권고 '+(r.warn||0)+'건 — 결함 상세는 검증 엔진 연동 시 표시됩니다.</td></tr>';
+        html += '</tbody></table></div></div></section>';
+      }
+
+      // 생성 결과물
+      html += '<section class="panel"><div class="p-head"><h2>생성 결과물</h2></div><div class="p-body"><ul class="dl-list">'
+        + '<li><span class="ico">XLSX</span><div class="meta"><b>AI 개선 산출물</b><div>원본 포맷 유지 · 수정 위치 [개선] 태그</div></div><a class="btn sm sec" href="review-report.html#improved">다운로드</a></li>'
+        + '<li><span class="ico">XLSX</span><div class="meta"><b>시정조치관리대장</b><div>표지·개정이력·시정조치서 3시트</div></div><a class="btn sm sec" href="corrective-actions.html">열기</a></li>'
+        + '<li><span class="ico">HWPX</span><div class="meta"><b>단계말 검토결과서</b><div>QA 승인 후 최종 발급</div></div><a class="btn sm sec" href="review-report.html">열기</a></li>'
+        + '</ul></div></section>';
+
+      document.getElementById('detail').innerHTML=html;
+      if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
+    }
+
+    function phaseCell(n,label,fail,last){
+      if(fail) return '<div class="st fail" style="color:var(--err)"><span class="n" style="background:var(--err)">!</span>Phase'+n+' '+label+'</div>';
+      return '<div class="st done"><span class="n">✓</span>Phase'+n+' '+label+'</div>';
+    }
+  </script>
+</body>
+</html>

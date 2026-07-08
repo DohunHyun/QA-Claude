@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로젝트 승인 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="project" data-page="project-approval">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 프로젝트 <span class="sep">›</span> 승인 관리 <span class="sep">›</span> 프로젝트 승인대기</div>
+    <div class="page-head">
+      <div><h1>프로젝트 승인 (관리자)</h1>
+      <p>PM이 신청한 프로젝트를 검토·승인합니다. 승인 시 프로젝트가 활성화되어 검증을 진행할 수 있습니다. (§7.1)</p></div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi warn"><div class="k-label">승인 대기</div><div class="k-value" id="kPending">0</div></div>
+      <div class="kpi ok"><div class="k-label">승인 완료(누적)</div><div class="k-value" id="kApproved">0</div></div>
+      <div class="kpi err"><div class="k-label">반려</div><div class="k-value" id="kRejected">0</div></div>
+      <div class="kpi"><div class="k-label">전체 프로젝트</div><div class="k-value" id="kTotal">0</div></div>
+    </div>
+
+    <section class="panel">
+      <div class="p-head"><h2>승인 대기 목록</h2><span class="more">REQUESTED 상태</span></div>
+      <div class="p-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl">
+            <thead><tr><th class="num">No</th><th class="num">코드</th><th>프로젝트명</th><th class="num">신청 PM</th><th class="num">기간</th><th class="num">상태</th><th class="num" style="width:180px">처리</th></tr></thead>
+            <tbody id="pendingRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="p-head"><h2>전체 프로젝트 상태</h2><span class="more">승인 결과 반영</span></div>
+      <div class="p-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl">
+            <thead><tr><th class="num">코드</th><th>프로젝트명</th><th class="num">PM</th><th class="num">단계</th><th class="num">상태</th><th class="num">승인자</th><th class="num">승인일</th></tr></thead>
+            <tbody id="allRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="note">승인 처리는 브라우저(localStorage)에 저장되어 프로젝트 목록·현황에 즉시 반영됩니다. 백엔드 연동 시 <code>PUT /api/projects/{id}/status</code> 호출로 교체하면 됩니다.</div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M = window.MOCK, e = M.esc;
+    var approver = (M.currentUser() || {}).name || '관리자';
+
+    function period(p){ return (p.start||'-') + ' ~ ' + (p.end||'-'); }
+
+    function render(){
+      var all = M.allProjects();
+      var pending = all.filter(function(p){ return p.status === 'REQUESTED'; });
+      var approved = all.filter(function(p){ return p.status === 'ACTIVE' || p.status === 'APPROVED'; });
+      var rejected = all.filter(function(p){ return p.status === 'REJECTED'; });
+
+      document.getElementById('kPending').textContent = pending.length;
+      document.getElementById('kApproved').textContent = approved.length;
+      document.getElementById('kRejected').textContent = rejected.length;
+      document.getElementById('kTotal').textContent = all.length;
+
+      // 승인 대기 목록
+      document.getElementById('pendingRows').innerHTML = pending.length
+        ? pending.map(function(p,i){
+            return '<tr>'
+              + '<td class="num">'+(i+1)+'</td>'
+              + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
+              + '<td><b>'+e(p.name)+'</b></td>'
+              + '<td class="num">'+e(p.pm)+'</td>'
+              + '<td class="num muted" style="font-size:11px">'+e(period(p))+'</td>'
+              + '<td class="num">'+M.stateHtml(p.status)+'</td>'
+              + '<td class="num"><div class="btn-row" style="justify-content:center">'
+              +   '<button class="btn sm" data-approve="'+p.id+'">승인</button>'
+              +   '<button class="btn sm sec" data-reject="'+p.id+'">반려</button>'
+              + '</div></td></tr>';
+          }).join('')
+        : '<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">승인 대기 중인 프로젝트가 없습니다.</td></tr>';
+
+      // 전체 상태
+      document.getElementById('allRows').innerHTML = all.map(function(p){
+        return '<tr>'
+          + '<td class="num"><span class="pill g">'+e(p.code)+'</span></td>'
+          + '<td>'+e(p.name)+'</td><td class="num">'+e(p.pm)+'</td>'
+          + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
+          + '<td class="num">'+M.stateHtml(p.status)+'</td>'
+          + '<td class="num">'+(p.approver?e(p.approver):'<span class="muted">-</span>')+'</td>'
+          + '<td class="num muted">'+(p.approvedAt?e(p.approvedAt):'-')+'</td></tr>';
+      }).join('');
+    }
+
+    // 승인/반려 처리 (이벤트 위임)
+    document.querySelector('.main').addEventListener('click', function(ev){
+      var ap = ev.target.closest('[data-approve]');
+      var rj = ev.target.closest('[data-reject]');
+      if (ap) {
+        var id = ap.getAttribute('data-approve');
+        M.setProjectStatus(id, 'ACTIVE', approver);
+        render();
+      } else if (rj) {
+        var rid = rj.getAttribute('data-reject');
+        if (confirm('이 프로젝트를 반려하시겠습니까?')) {
+          M.setProjectStatus(rid, 'REJECTED', approver);
+          render();
+        }
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>검토 진행도 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="validate" data-page="validation-progress">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 산출물 검증 <span class="sep">›</span> 검토 진행도</div>
+    <div class="page-head">
+      <div><h1>검토 진행도</h1><p>진행 중·최근 완료된 검증 회차의 4-Phase 진행 상태를 프로젝트별로 모니터링합니다.</p></div>
+      <a class="btn sec" href="validation-upload.html">＋ 새 검증</a>
+    </div>
+
+    <!-- 프로젝트 선택 -->
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:360px"></select></div>
+      <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
+      <div class="spacer"></div>
+      <span class="muted" id="scopeTag"></span>
+    </div>
+
+    <div id="detail"></div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    var u=M.currentUser()||{};
+    var list=M.visibleProjects();
+    var params=new URLSearchParams(location.search);
+
+    document.getElementById('scopeTag').innerHTML = (u.role==='PM')
+      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+
+    if(!list.length){
+      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
+      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+    } else {
+      document.getElementById('projSel').innerHTML=list.map(function(p){
+        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+      var pid=params.get('projectId');
+      var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
+      document.getElementById('projSel').value=String(sel.id);
+      render();
+      document.getElementById('projSel').addEventListener('change', function(){
+        var p=list.filter(function(x){return String(x.id)===this.value;}.bind(this))[0];
+        history.replaceState(null,'','validation-progress.html?projectId='+p.id); render();
+      });
+      document.getElementById('stageSel').addEventListener('change', render);
+    }
+
+    function curProject(){
+      var id=document.getElementById('projSel').value;
+      return list.filter(function(p){return String(p.id)===id;})[0];
+    }
+
+    function render(){
+      var p=curProject(); if(!p) return;
+      var stageF=document.getElementById('stageSel').value;
+      var revs=M.REVIEWS.filter(function(r){ return r.project===p.code && (!stageF || r.stage===stageF); })
+                        .slice().sort(function(a,b){return b.id-a.id;});
+      var running=revs.filter(function(r){return r.status==='RUNNING';});
+
+      var html='';
+      // 진행 중 패널
+      if(running.length){
+        html += running.map(function(r){
+          return '<section class="panel"><div class="p-head"><h2>진행 중 검증 · '+e(r.artifact)+' ('+e(r.code)+') #'+r.id+'</h2>'
+            +'<span class="more">'+r.round+'회차 · '+e(p.code)+'</span></div><div class="p-body">'
+            +'<div class="steps">'
+            +'<div class="st done"><span class="n">✓</span>Phase1 표준 보증</div>'
+            +'<div class="st done"><span class="n">✓</span>Phase2 요구사항 품질</div>'
+            +'<div class="st cur"><span class="n">3</span>Phase3 정합성 체크</div>'
+            +'<div class="st"><span class="n">4</span>Phase4 결과물 생성</div></div>'
+            +'<div class="progress" style="margin-top:12px"><span style="width:62%"></span></div>'
+            +'<div class="muted" style="margin-top:8px">파일명·표지·개정이력 검증 완료 → 요구사항추적표 대조 완료 → 정합성 검사 중…</div>'
+            +'</div></section>';
+        }).join('');
+      } else {
+        html += '<div class="note" style="margin-bottom:14px">현재 <b>'+e(p.name)+'</b>에 진행 중인 검증이 없습니다.</div>';
+      }
+
+      // 큐 / 이력
+      html += '<section class="panel"><div class="p-head"><h2>검증 큐 / 최근 이력 · '+e(p.code)+'</h2>'
+        +'<span class="more">'+revs.length+'건</span></div><div class="p-body flush"><table class="tbl">'
+        +'<thead><tr><th class="num">검토ID</th><th>산출물</th><th class="num">회차</th><th style="width:220px">진행</th><th class="num">상태</th><th class="num">검증일</th></tr></thead><tbody>';
+      html += revs.length
+        ? revs.map(function(r){
+            var pct=r.status==='RUNNING'?62:(r.status==='COMPLETED'?100:0);
+            return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.id+'\'" style="cursor:pointer">'
+              +'<td class="num">#'+r.id+'</td><td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
+              +'<td class="num">'+r.round+'회차</td>'
+              +'<td><div class="progress"><span style="width:'+pct+'%"></span></div></td>'
+              +'<td class="num">'+M.stateHtml(r.status)+'</td>'
+              +'<td class="num muted">'+e(r.date)+'</td></tr>';
+          }).join('')
+        : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다.</td></tr>';
+      html += '</tbody></table></div></section>';
+
+      document.getElementById('detail').innerHTML=html;
+    }
+  </script>
+</body>
+</html>

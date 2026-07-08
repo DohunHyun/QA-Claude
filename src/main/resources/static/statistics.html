@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현황/통계 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    .bar-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}
+    .bar-row .lab{width:120px;color:#33445c;font-weight:700}
+    .bar-row .track{flex:1;height:16px;background:#eef2f7;border-radius:8px;overflow:hidden}
+    .bar-row .track > span{display:block;height:100%}
+    .bar-row .val{width:52px;text-align:right;color:#5b6675}
+    .donut{width:150px;height:150px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto}
+    .donut .hole{width:96px;height:96px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  </style>
+</head>
+<body data-nav="stats" data-page="statistics">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 현황/통계 <span class="sep">›</span> 검증 현황</div>
+    <div class="page-head">
+      <div><h1>검증 현황 / 통계</h1><p>프로젝트별(또는 전체) 검증 진행·결함유형 분포·회차별 개선 추이를 집계합니다.</p></div>
+      <div class="fg"><label class="soft" style="font-weight:700;margin-right:6px">범위</label><select id="projSel" style="max-width:320px"></select></div>
+    </div>
+
+    <div id="detail"></div>
+
+    <div class="note">기대효과: 현행 QA 단계말 점검 리드타임(점검 1~2일 + 결과서 3~4일) → <b>수 분</b>으로 압축. PoC에서 1개 오류의 3중 연쇄 전염(Level2명 오타) 실측.</div>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    var list=M.visibleProjects();
+    var DTYPES=['표준미준수','필수항목누락','내용오류·불명확','미제출','중복','기타'];
+
+    // 범위 드롭다운: 전체 + 각 프로젝트
+    var opts='<option value="__ALL__">전체 프로젝트'+(list.length?' ('+list.length+')':'')+'</option>'
+      + list.map(function(p){ return '<option value="'+p.code+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+    document.getElementById('projSel').innerHTML=opts;
+    document.getElementById('projSel').addEventListener('change', render);
+    render();
+
+    function scope(){
+      var v=document.getElementById('projSel').value;
+      var codes = v==='__ALL__' ? list.map(function(p){return p.code;}) : [v];
+      var reviews=M.REVIEWS.filter(function(r){ return codes.indexOf(r.project)!==-1; });
+      var defects=[]; codes.forEach(function(c){ defects=defects.concat(M.defectsFor(c)); });
+      return { codes:codes, reviews:reviews, defects:defects };
+    }
+
+    function render(){
+      var s=scope();
+      var reviews=s.reviews, defects=s.defects;
+      var completed=reviews.filter(function(r){return r.status==='COMPLETED';});
+      var improve=defects.filter(function(d){return d.sev==='개선';}).length;
+      var recommend=defects.filter(function(d){return d.sev==='권고';}).length;
+      var totalDef=defects.length;
+      var done=defects.filter(function(d){return d.status==='DONE';}).length;
+      var doneRate=totalDef?Math.round(done/totalDef*100):0;
+
+      // KPI
+      var html='<div class="kpis">'
+        + '<div class="kpi"><div class="k-label">누적 검증</div><div class="k-value">'+reviews.length+'<small> 회</small></div></div>'
+        + '<div class="kpi err"><div class="k-label">총 개선</div><div class="k-value">'+improve+'<small> 건</small></div></div>'
+        + '<div class="kpi warn"><div class="k-label">총 권고</div><div class="k-value">'+recommend+'<small> 건</small></div></div>'
+        + '<div class="kpi ok"><div class="k-label">조치 완료율</div><div class="k-value">'+doneRate+'<small> %</small></div></div>'
+        + '</div>';
+
+      // 결함유형 분포 + 도넛
+      var byType=DTYPES.map(function(t){ return { t:t, n:defects.filter(function(d){return d.dtype===t;}).length }; });
+      var maxN=Math.max(1, Math.max.apply(null, byType.map(function(x){return x.n;})));
+      var typeColor={'표준미준수':'var(--err)','필수항목누락':'var(--err)','내용오류·불명확':'var(--warn)','중복':'var(--warn)','기타':'var(--blue)','미제출':'#94a3b8'};
+      var bars=byType.map(function(x){
+        return '<div class="bar-row"><div class="lab">'+e(x.t)+'</div>'
+          +'<div class="track"><span style="width:'+Math.round(x.n/maxN*100)+'%;background:'+typeColor[x.t]+'"></span></div>'
+          +'<div class="val">'+x.n+'</div></div>';
+      }).join('');
+
+      var totalIW=improve+recommend;
+      var impPct=totalIW?Math.round(improve/totalIW*100):0;
+      var donutStyle='background:conic-gradient(var(--err) 0 '+impPct+'%, var(--warn) '+impPct+'% 100%)';
+
+      html+='<div class="grid2">'
+        + '<section class="panel" id="defect"><div class="p-head"><h2>결함유형 분포 (6종)</h2></div><div class="p-body">'
+        + (totalDef? bars : '<div class="muted">집계할 결함 데이터가 없습니다.</div>')
+        + '</div></section>'
+        + '<section class="panel"><div class="p-head"><h2>개선 vs 권고 비율</h2></div><div class="p-body">'
+        + '<div class="donut" style="'+donutStyle+'"><div class="hole"><b style="font-size:20px">'+totalDef+'</b><span class="muted">총 결함</span></div></div>'
+        + '<div class="legend" style="justify-content:center;margin-top:14px">'
+        +   '<span><span class="badge 개선">개선</span> '+improve+'건 ('+impPct+'%)</span>'
+        +   '<span><span class="badge 권고">권고</span> '+recommend+'건 ('+(totalIW?100-impPct:0)+'%)</span>'
+        + '</div></div></section></div>';
+
+      // 단계별 현황
+      var stages=['관리','분석','설계'];
+      var rows=stages.map(function(st){
+        var rs=reviews.filter(function(r){return r.stage===st;});
+        if(!rs.length) return '<tr><td class="num"><span class="pill g">'+st+'</span></td><td class="num" colspan="7"><span class="muted">데이터 없음</span></td></tr>';
+        var codes={}; rs.forEach(function(r){ if(!codes[r.code]||r.round>codes[r.code].round) codes[r.code]=r; });
+        var arts=Object.keys(codes);
+        var passed=arts.filter(function(k){return codes[k].status==='COMPLETED'&&codes[k].passed;}).length;
+        var running=rs.filter(function(r){return r.status==='RUNNING';}).length;
+        var avgRound=(rs.reduce(function(a,r){return a+r.round;},0)/rs.length).toFixed(1);
+        var cs=rs.filter(function(r){return r.status==='COMPLETED';});
+        var err=cs.reduce(function(a,r){return a+(r.error||0);},0);
+        var warn=cs.reduce(function(a,r){return a+(r.warn||0);},0);
+        var rate=arts.length?Math.round(passed/arts.length*100):0;
+        var rateCls=rate>=100?'done':(rate>0?'run':'wait');
+        return '<tr><td class="num"><span class="pill g">'+st+'</span></td>'
+          +'<td class="num">'+arts.length+'</td><td class="num">'+passed+'</td><td class="num">'+running+'</td>'
+          +'<td class="num">'+avgRound+'</td><td class="num">'+err+'</td><td class="num">'+warn+'</td>'
+          +'<td class="num"><span class="state '+rateCls+'">'+rate+'%</span></td></tr>';
+      }).join('');
+
+      html+='<section class="panel" id="round"><div class="p-head"><h2>단계별 검증 현황 · 회차별 개선 추이</h2></div>'
+        + '<div class="p-body flush"><table class="tbl"><thead><tr>'
+        + '<th class="num">단계</th><th class="num">산출물 수</th><th class="num">통과</th><th class="num">진행중</th><th class="num">평균 회차</th><th class="num">개선</th><th class="num">권고</th><th class="num">통과율</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+
+      document.getElementById('detail').innerHTML=html;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>내 프로젝트 검증 · QA-Claude</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body data-nav="portal" data-page="my-validations">
+  <main class="main">
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 나의업무 <span class="sep">›</span> 내 프로젝트 검증</div>
+    <div class="page-head">
+      <div><h1>내 프로젝트 검증</h1><p>내가 담당한 프로젝트의 전체 검증 회차 이력입니다.</p></div>
+      <a class="btn" href="validation-upload.html">＋ 새 검증</a>
+    </div>
+
+    <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel"></select></div>
+      <div class="fg"><label>단계</label><select><option>전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
+      <div class="fg"><label>판정</label><select><option>전체</option><option>통과</option><option>미통과</option><option>진행중</option></select></div>
+      <button class="btn sm">조회</button>
+    </div>
+
+    <section class="panel">
+      <div class="p-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl">
+            <thead><tr><th class="num">검토ID</th><th class="num">프로젝트</th><th>산출물</th><th class="num">단계</th><th class="num">회차</th><th class="num">상태</th><th class="num">판정</th><th class="num">개선</th><th class="num">권고</th><th class="num">검증일</th><th class="num">결과</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/mock.js"></script>
+  <script src="assets/js/session.js"></script>
+  <script src="assets/js/layout.js"></script>
+  <script>
+    var M=window.MOCK, e=M.esc;
+    document.getElementById('projSel').innerHTML = M.visibleProjects().map(function(p){ return '<option>'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+    document.getElementById('rows').innerHTML = M.visibleReviews().map(function(r){
+      var verdict = r.status!=='COMPLETED' ? '<span class="muted">-</span>'
+        : (r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>');
+      return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.id+'\'" style="cursor:pointer">'
+        +'<td class="num">#'+r.id+'</td><td class="num"><span class="pill">'+e(r.project)+'</span></td>'
+        +'<td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
+        +'<td class="num"><span class="pill g">'+e(r.stage)+'</span></td><td class="num">'+r.round+'회차</td>'
+        +'<td class="num">'+M.stateHtml(r.status)+'</td><td class="num">'+verdict+'</td>'
+        +'<td class="num">'+(r.error?'<span class="badge 개선">'+r.error+'</span>':'<span class="muted">0</span>')+'</td>'
+        +'<td class="num">'+(r.warn?'<span class="badge 권고">'+r.warn+'</span>':'<span class="muted">0</span>')+'</td>'
+        +'<td class="num muted">'+e(r.date)+'</td>'
+        +'<td class="num"><a class="btn sm sec" href="validation-result.html?reviewId="+r.id+"">보기</a></td></tr>';
+    }).join('');
+  </script>
+</body>
+</html>
