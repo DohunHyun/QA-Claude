@@ -35,6 +35,8 @@ public class ExcelDocumentParser implements DocumentParser {
 
         try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(content))) {
             DataFormatter fmt = new DataFormatter();
+            // 수식 셀 평가 — 실측: PM-310 개정이력 변경일이 '=표지!G14' 수식 (미평가 시 수식 문자열 노출)
+            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
             for (int s = 0; s < wb.getNumberOfSheets(); s++) {
                 Sheet sheet = wb.getSheetAt(s);
                 List<List<String>> rows = new ArrayList<>();
@@ -43,7 +45,7 @@ public class ExcelDocumentParser implements DocumentParser {
                     short last = row.getLastCellNum();
                     for (int c = 0; c < last; c++) {
                         Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                        cells.add(cell == null ? "" : fmt.formatCellValue(cell).trim());
+                        cells.add(cell == null ? "" : formatCell(fmt, evaluator, cell));
                     }
                     rows.add(cells);
                 }
@@ -54,5 +56,14 @@ public class ExcelDocumentParser implements DocumentParser {
             throw new IllegalArgumentException("Excel 파싱 실패: " + fileName + " — " + e.getMessage(), e);
         }
         return doc;
+    }
+
+    /** 수식 셀은 평가 후 포맷. 미지원 함수 등 평가 실패 시 미평가 포맷으로 폴백(파싱 중단 없음). */
+    private String formatCell(DataFormatter fmt, FormulaEvaluator evaluator, Cell cell) {
+        try {
+            return fmt.formatCellValue(cell, evaluator).trim();
+        } catch (RuntimeException e) {
+            return fmt.formatCellValue(cell).trim();
+        }
     }
 }

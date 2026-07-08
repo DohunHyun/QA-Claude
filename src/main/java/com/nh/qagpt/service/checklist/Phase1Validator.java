@@ -30,6 +30,10 @@ public class Phase1Validator {
     private static final Pattern VERSION = Pattern.compile("([_-])([vV])(\\d+(?:\\.\\d+)*)");
     /** yyyy.mm.dd / yyyy-mm-dd / yyyy/mm/dd (제·개정일자 셀). */
     private static final Pattern YMD = Pattern.compile("(\\d{4})[.\\-/](\\d{1,2})[.\\-/](\\d{1,2})");
+    /** M/D/YY — POI DataFormatter가 날짜 셀을 미국식 단축형으로 렌더링하는 실측 케이스 (예: 5/19/25). */
+    private static final Pattern US_SHORT = Pattern.compile("(?<![0-9])(\\d{1,2})/(\\d{1,2})/(\\d{2,4})(?![0-9])");
+    /** yyyy년 m월 d일 (한국어 날짜 서식 셀). */
+    private static final Pattern KO_YMD = Pattern.compile("(\\d{4})년\\s*(\\d{1,2})월\\s*(\\d{1,2})일");
 
     public List<Defect> validate(ParsedDocument document, Project project) {
         if (project == null) {
@@ -150,7 +154,9 @@ public class Phase1Validator {
         }
         boolean hasEntry = false;
         for (List<String> row : rev.getValue()) {
-            boolean rowHasDate = row.stream().anyMatch(c -> c != null && (YMD.matcher(c).find() || YYYYMMDD.matcher(c).find()));
+            boolean rowHasDate = row.stream().anyMatch(c -> c != null
+                    && (YMD.matcher(c).find() || YYYYMMDD.matcher(c).find()
+                        || US_SHORT.matcher(c).find() || KO_YMD.matcher(c).find()));
             boolean rowHasVersion = row.stream().anyMatch(c -> c != null && c.matches(".*\\d.*")
                     && (c.toLowerCase().contains("v") || c.matches("\\s*\\d+(\\.\\d+)*\\s*")));
             if (rowHasDate && rowHasVersion) {
@@ -263,12 +269,33 @@ public class Phase1Validator {
                 // 잘못된 일자 조합 → 무시
             }
         }
+        Matcher ko = KO_YMD.matcher(cell);
+        if (ko.find()) {
+            try {
+                return LocalDate.of(Integer.parseInt(ko.group(1)),
+                        Integer.parseInt(ko.group(2)), Integer.parseInt(ko.group(3)));
+            } catch (RuntimeException ignored) {
+                // 무시
+            }
+        }
         Matcher eight = YYYYMMDD.matcher(cell);
         if (eight.find()) {
             String s = eight.group();
             try {
                 return LocalDate.of(Integer.parseInt(s.substring(0, 4)),
                         Integer.parseInt(s.substring(4, 6)), Integer.parseInt(s.substring(6, 8)));
+            } catch (RuntimeException ignored) {
+                // 무시
+            }
+        }
+        Matcher us = US_SHORT.matcher(cell);
+        if (us.find()) { // POI 단축형 M/D/YY (연도 2자리는 2000년대로 해석)
+            try {
+                int year = Integer.parseInt(us.group(3));
+                if (year < 100) {
+                    year += 2000;
+                }
+                return LocalDate.of(year, Integer.parseInt(us.group(1)), Integer.parseInt(us.group(2)));
             } catch (RuntimeException ignored) {
                 // 무시
             }
