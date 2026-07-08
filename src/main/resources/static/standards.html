@@ -24,7 +24,7 @@
       <div class="p-body flush">
         <div class="tbl-scroll">
           <table class="tbl">
-            <thead><tr><th class="num">No</th><th class="num">단계</th><th class="num">문서코드</th><th>산출물명</th><th>체크리스트 파일</th><th class="num">API 연결</th><th class="num">보기</th></tr></thead>
+            <thead><tr><th class="num">No</th><th class="num">단계</th><th class="num">문서코드</th><th>산출물명</th><th>체크리스트 파일</th><th class="num">보기</th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
         </div>
@@ -80,7 +80,6 @@
         return '<tr><td class="num">'+(i+1)+'</td><td class="num"><span class="pill g">'+e(a.stage)+'</span></td>'
           +'<td class="num">'+e(a.code)+'</td><td><b>'+e(a.name)+'</b></td>'
           +'<td class="muted">'+e(file)+'.md</td>'
-          +'<td class="num">'+(a.wired?'<span class="state done">연결</span>':'<span class="state wait">S2</span>')+'</td>'
           +'<td class="num"><button class="btn sm sec" data-file="'+e(file)+'" data-name="'+e(a.name)+'">기준 보기</button></td></tr>';
       }).join('');
     }
