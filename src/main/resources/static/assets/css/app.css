@@ -32,6 +32,7 @@ html, body {
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px;
   line-height: 1.5;
+  word-break: keep-all;   /* 한글 글자 단위 세로 꺾임 방지 — 공백 단위로만 줄바꿈 */
 }
 
 a { color: inherit; text-decoration: none; }
@@ -237,7 +238,7 @@ a { color: inherit; text-decoration: none; }
   content:""; width: 4px; height: 13px; border-radius: 2px; background: var(--blue);
 }
 .panel > .p-head .more { font-size: 11px; color: var(--muted); }
-.panel > .p-body { padding: 14px; }
+.panel > .p-body { padding: 14px; overflow-x: auto; }  /* 넓은 표는 패널 안에서 가로 스크롤 */
 .panel > .p-body.flush { padding: 0; }
 
 /* KPI 카드 */
@@ -252,7 +253,7 @@ a { color: inherit; text-decoration: none; }
   width: 60px; height: 60px; border-radius: 50%;
   background: var(--blue-soft);
 }
-.kpi .k-label { font-size: 12px; color: var(--ink-soft); }
+.kpi .k-label { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .kpi .k-value { font-size: 26px; font-weight: 800; color: var(--navy-2); margin-top: 2px; }
 .kpi .k-value small { font-size: 13px; color: var(--muted); font-weight: 600; }
 .kpi.err .k-value { color: var(--err); }
@@ -285,7 +286,7 @@ table.tbl td.rt { text-align: right; }
 .badge.gray { background: #94a3b8; }
 .badge.blue { background: var(--blue); }
 
-.state { display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:12px; }
+.state { display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:12px; white-space:nowrap; }
 .state::before { content:""; width:7px; height:7px; border-radius:50%; background: currentColor; }
 .state.wait { color:#8a94a3; }
 .state.run  { color: var(--blue); }
@@ -296,6 +297,7 @@ table.tbl td.rt { text-align: right; }
 .pill {
   display:inline-block; padding:2px 10px; border-radius:11px;
   font-size:11.5px; background: var(--blue-soft); color: var(--blue); font-weight:700;
+  white-space: nowrap;
 }
 .pill.g { background:#eef2f6; color:#5b6675; }
 
@@ -323,6 +325,7 @@ textarea { max-width:100%; resize:vertical; }
   display:inline-flex; align-items:center; gap:6px; cursor:pointer;
   border:1px solid transparent; border-radius:6px; padding:7px 14px;
   font-size:13px; font-weight:700; background: var(--blue); color:#fff;
+  white-space: nowrap;
 }
 .btn:hover { background:#245bc4; }
 .btn:disabled { background:#9db8ea; cursor:default; }

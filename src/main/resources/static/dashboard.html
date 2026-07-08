@@ -41,7 +41,7 @@
         <div class="p-body flush">
           <div class="tbl-scroll">
             <table class="tbl">
-              <thead><tr><th class="num">코드</th><th>프로젝트명</th><th class="num">단계</th><th style="width:120px">진행률</th><th class="num">상태</th></tr></thead>
+              <thead><tr><th class="num">PM</th><th>프로젝트명</th><th class="num">단계</th><th style="width:120px">진행률</th><th class="num">상태</th></tr></thead>
               <tbody id="myProjects"></tbody>
             </table>
           </div>
@@ -148,7 +148,7 @@
     document.getElementById('myProjects').innerHTML = myProjs.length
       ? myProjs.map(function(p){
           return '<tr onclick="location.href=\'project-detail.html?projectId='+p.id+'\'" style="cursor:pointer">'
-            + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
+            + '<td class="num">'+e(p.pm)+'</td>'
             + '<td><b>'+e(p.name)+'</b></td>'
             + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
             + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div>'
