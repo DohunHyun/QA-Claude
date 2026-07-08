@@ -53,8 +53,10 @@ spring:
     password: ${DB_PASSWORD:qagpt}
     driver-class-name: org.postgresql.Driver
   jpa:
+    # 빈 DB에 최초 기동 시 엔티티 기준으로 스키마 자동 생성/갱신.
+    # (validate 는 스키마가 이미 있어야만 통과 → 신규 Postgres 에선 기동 실패)
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
