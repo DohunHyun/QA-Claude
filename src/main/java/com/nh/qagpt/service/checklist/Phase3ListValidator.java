@@ -15,14 +15,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * [S8] Phase3 목록/정합성 검증 (spec §7.2 Phase3) — 산출물 유형 확대.
+ * [S8/P1-F] Phase3 목록/정합성 검증 (spec §7.2 Phase3) — 목록형 산출물 확대.
  *
- * 실측 컬럼(NHEFS 신 포맷) 기준:
- *  - 프로그램목록(DS07): 단위업무명·프로그램 ID·프로그램 명 (ID열=프로그램 ID)
- *  - 인터페이스정의서(AN08): 단위업무명·인터페이스ID·인터페이스명 (ID열=인터페이스ID)
+ * 실측 컬럼(신 포맷 NHEFS + 구 템플릿 NHXXX) 기준:
+ *  - 프로그램목록(DS07): 단위업무명·프로그램 ID·프로그램 명
+ *  - 인터페이스정의서(AN08): 단위업무명·인터페이스ID·인터페이스명
+ *  - UI목록(DS01, 구 템플릿 실측): 단위업무명·화면/보고서ID·화면/보고서명
+ *  - 요구사항정의서(AN06): 요구사항 ID·요구사항명 (신 포맷 '기능' 시트는 멀티행 헤더 — r0 그룹 + r2 상세)
  *  - 배치Job목록(AN07): 필수컬럼은 {@link ChecklistEngineImpl}가 담당, 여기선 ID중복·enum(개발구분)만.
  *
- * 공통: ID 중복(중복 결함), 목록형 필수컬럼 존재, 열거값 유효성.
+ * 멀티행 헤더 대응: 필수컬럼은 헤더 존(상위 12행) 내 등장 여부로, ID열은 토큰이 있는 (행,열)을 찾아
+ * 그 아래를 데이터로 본다. 공통: ID 중복(중복 결함), 필수컬럼 존재, 열거값 유효성.
  */
 public class Phase3ListValidator {
 
@@ -32,14 +35,20 @@ public class Phase3ListValidator {
     private static final Map<ArtifactType, String> ID_COLUMN = new LinkedHashMap<>();
     /** 배치Job목록 개발구분 허용값. */
     private static final Set<String> DEV_TYPES = Set.of("신규", "유지", "삭제", "변경", "중복");
+    /** 헤더 존: 멀티행 헤더(그룹+상세)를 수용하는 상위 행 수. */
+    private static final int HEADER_ZONE = 12;
 
     static {
         REQUIRED.put(ArtifactType.PROGRAM_LIST, List.of("단위업무명", "프로그램 ID", "프로그램 명"));
         REQUIRED.put(ArtifactType.INTERFACE_DEFINITION, List.of("단위업무명", "인터페이스ID", "인터페이스명"));
+        REQUIRED.put(ArtifactType.UI_LIST, List.of("단위업무명", "화면/보고서ID", "화면/보고서명"));
+        REQUIRED.put(ArtifactType.REQUIREMENT_DEFINITION, List.of("요구사항 ID", "요구사항명"));
 
         ID_COLUMN.put(ArtifactType.BATCH_JOB_LIST, "Job ID");
         ID_COLUMN.put(ArtifactType.PROGRAM_LIST, "프로그램 ID");
         ID_COLUMN.put(ArtifactType.INTERFACE_DEFINITION, "인터페이스ID");
+        ID_COLUMN.put(ArtifactType.UI_LIST, "화면/보고서ID");
+        ID_COLUMN.put(ArtifactType.REQUIREMENT_DEFINITION, "요구사항 ID"); // spec §15.3 빈번사례: 요구사항 ID 중복
     }
 
     public List<Defect> validate(ParsedDocument document, ArtifactType type) {
@@ -47,29 +56,29 @@ public class Phase3ListValidator {
         if (type == null || type == ArtifactType.UNKNOWN) {
             return defects;
         }
-        Map.Entry<String, List<List<String>>> body = selectBodySheet(document);
+        String primaryToken = ID_COLUMN.getOrDefault(type,
+                REQUIRED.containsKey(type) ? REQUIRED.get(type).get(0) : null);
+        Map.Entry<String, List<List<String>>> body = selectBodySheet(document, primaryToken);
         if (body == null) {
             return defects;
         }
         String sheet = body.getKey();
         List<List<String>> rows = body.getValue();
-        int headerIdx = findHeaderRowIndex(rows);
-        List<String> header = headerIdx < 0 ? List.of() : rows.get(headerIdx);
 
-        defects.addAll(checkRequired(type, sheet, header));
-        defects.addAll(checkIdDuplicates(type, sheet, rows, headerIdx, header));
-        defects.addAll(checkDevTypeEnum(type, sheet, rows, headerIdx, header));
+        defects.addAll(checkRequired(type, sheet, rows));
+        defects.addAll(checkIdDuplicates(type, sheet, rows));
+        defects.addAll(checkDevTypeEnum(type, sheet, rows));
         return defects;
     }
 
-    private List<Defect> checkRequired(ArtifactType type, String sheet, List<String> header) {
+    private List<Defect> checkRequired(ArtifactType type, String sheet, List<List<String>> rows) {
         List<Defect> defects = new ArrayList<>();
         List<String> required = REQUIRED.get(type);
         if (required == null) {
             return defects;
         }
         for (String col : required) {
-            if (columnIndex(header, col) < 0) {
+            if (findInHeaderZone(rows, col) == null) {
                 Defect d = base(Severity.IMPROVEMENT, DefectType.MISSING_REQUIRED, sheet);
                 d.setChecklistItemKey(type.getChecklistKey() + ".required_column");
                 d.setLocationColumn(col);
@@ -81,21 +90,20 @@ public class Phase3ListValidator {
         return defects;
     }
 
-    private List<Defect> checkIdDuplicates(ArtifactType type, String sheet,
-                                           List<List<String>> rows, int headerIdx, List<String> header) {
+    private List<Defect> checkIdDuplicates(ArtifactType type, String sheet, List<List<String>> rows) {
         List<Defect> defects = new ArrayList<>();
         String idToken = ID_COLUMN.get(type);
-        if (idToken == null || headerIdx < 0) {
+        if (idToken == null) {
             return defects;
         }
-        int idCol = columnIndex(header, idToken);
-        if (idCol < 0) {
+        int[] pos = findInHeaderZone(rows, idToken);
+        if (pos == null) {
             return defects;
         }
         Set<String> seen = new LinkedHashSet<>();
         Set<String> reported = new LinkedHashSet<>();
-        for (int r = headerIdx + 1; r < rows.size(); r++) {
-            String value = cell(rows.get(r), idCol);
+        for (int r = pos[0] + 1; r < rows.size(); r++) {
+            String value = cell(rows.get(r), pos[1]);
             if (value.isBlank()) {
                 continue;
             }
@@ -112,18 +120,17 @@ public class Phase3ListValidator {
         return defects;
     }
 
-    private List<Defect> checkDevTypeEnum(ArtifactType type, String sheet,
-                                          List<List<String>> rows, int headerIdx, List<String> header) {
+    private List<Defect> checkDevTypeEnum(ArtifactType type, String sheet, List<List<String>> rows) {
         List<Defect> defects = new ArrayList<>();
-        if (type != ArtifactType.BATCH_JOB_LIST || headerIdx < 0) {
+        if (type != ArtifactType.BATCH_JOB_LIST) {
             return defects;
         }
-        int col = columnIndex(header, "개발구분");
-        if (col < 0) {
+        int[] pos = findInHeaderZone(rows, "개발구분");
+        if (pos == null) {
             return defects;
         }
-        for (int r = headerIdx + 1; r < rows.size(); r++) {
-            String value = cell(rows.get(r), col);
+        for (int r = pos[0] + 1; r < rows.size(); r++) {
+            String value = cell(rows.get(r), pos[1]);
             if (value.isBlank()) {
                 continue;
             }
@@ -150,17 +157,22 @@ public class Phase3ListValidator {
         return d;
     }
 
-    /** 본문 시트: 이름에 본문/양식/내용/목록 포함 우선, 없으면 최대 컬럼 수 시트. */
-    private Map.Entry<String, List<List<String>>> selectBodySheet(ParsedDocument document) {
+    /**
+     * 본문 시트 선택: ① 헤더 존에 대표 토큰(ID열)이 있는 시트 → ② 이름(본문/양식/내용/목록/기능)
+     * → ③ 최대 컬럼 수 시트. (신 포맷 AN06은 '기능' 시트가 본문)
+     */
+    private Map.Entry<String, List<List<String>>> selectBodySheet(ParsedDocument document, String primaryToken) {
         Map.Entry<String, List<List<String>>> byName = null;
         Map.Entry<String, List<List<String>>> byWidth = null;
         int maxWidth = -1;
         for (Map.Entry<String, List<List<String>>> e : document.getSheets().entrySet()) {
+            if (primaryToken != null && findInHeaderZone(e.getValue(), primaryToken) != null) {
+                return e;
+            }
             String name = e.getKey() == null ? "" : e.getKey();
-            if (name.contains("본문") || name.contains("양식") || name.contains("내용") || name.contains("목록")) {
-                if (byName == null) {
-                    byName = e;
-                }
+            if ((name.contains("본문") || name.contains("양식") || name.contains("내용")
+                    || name.contains("목록") || name.contains("기능")) && byName == null) {
+                byName = e;
             }
             int width = e.getValue().stream().mapToInt(List::size).max().orElse(0);
             if (width > maxWidth) {
@@ -171,28 +183,20 @@ public class Phase3ListValidator {
         return byName != null ? byName : byWidth;
     }
 
-    private int findHeaderRowIndex(List<List<String>> rows) {
-        int best = -1, maxNonEmpty = 0;
-        int limit = Math.min(rows.size(), 12);
-        for (int i = 0; i < limit; i++) {
-            int nonEmpty = (int) rows.get(i).stream().filter(c -> c != null && !c.isBlank()).count();
-            if (nonEmpty > maxNonEmpty) {
-                maxNonEmpty = nonEmpty;
-                best = i;
-            }
-        }
-        return best;
-    }
-
-    private int columnIndex(List<String> header, String token) {
+    /** 헤더 존(상위 12행)에서 토큰이 등장하는 첫 (행,열)을 찾는다. 멀티행 헤더 대응. 없으면 null. */
+    private int[] findInHeaderZone(List<List<String>> rows, String token) {
         String target = normalize(token);
-        for (int c = 0; c < header.size(); c++) {
-            String h = normalize(header.get(c));
-            if (h.equals(target) || h.contains(target)) {
-                return c;
+        int limit = Math.min(rows.size(), HEADER_ZONE);
+        for (int r = 0; r < limit; r++) {
+            List<String> row = rows.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                String h = normalize(row.get(c));
+                if (!h.isEmpty() && (h.equals(target) || h.contains(target))) {
+                    return new int[]{r, c};
+                }
             }
         }
-        return -1;
+        return null;
     }
 
     private String cell(List<String> row, int idx) {

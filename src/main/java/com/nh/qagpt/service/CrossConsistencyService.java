@@ -57,6 +57,14 @@ public class CrossConsistencyService {
                     idSet(batchList), idSet(batchDesign), "배치Job목록", "배치설계서"));
         }
 
+        // 관계 2: 요구사항추적표에 매핑된 U ID ⊆ UI목록 화면/보고서ID (spec §2.3 DS01 — 추적표와 UI ID 검증)
+        ArtifactSummary matrix = latest.get(ArtifactType.REQUIREMENT_TRACEABILITY_MATRIX);
+        ArtifactSummary uiList = latest.get(ArtifactType.UI_LIST);
+        if (matrix != null && uiList != null) {
+            defects.addAll(checker.idSubsetCoverage(
+                    idSet(matrix), idSet(uiList), "요구사항추적표 UI 매핑", "UI목록"));
+        }
+
         return defects.stream().map(DefectDto::from).toList();
     }
 

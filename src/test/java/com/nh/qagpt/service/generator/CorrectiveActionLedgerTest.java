@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** [S4] 시정조치관리대장 생성 — 3시트·17열·요약집계·CA_P/W·검토자·버전 텍스트 서식 검증. */
 class CorrectiveActionLedgerTest {
 
-    private final ResultGeneratorImpl generator = new ResultGeneratorImpl();
+    private final ResultGeneratorImpl generator = new ResultGeneratorImpl(null, new com.nh.qagpt.service.CorrectiveActionService(null));
     private final DataFormatter fmt = new DataFormatter();
 
     private ReviewResult sampleResult() {

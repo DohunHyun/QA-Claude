@@ -1,13 +1,15 @@
 package com.nh.qagpt.service.generator;
 
+import com.nh.qagpt.domain.CorrectiveAction;
 import com.nh.qagpt.domain.Defect;
 import com.nh.qagpt.domain.Document;
 import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
+import com.nh.qagpt.domain.enums.ActionStatus;
 import com.nh.qagpt.domain.enums.ArtifactType;
-import com.nh.qagpt.domain.enums.Perspective;
 import com.nh.qagpt.domain.enums.Severity;
-import com.nh.qagpt.domain.enums.Stage;
+import com.nh.qagpt.repository.CorrectiveActionRepository;
+import com.nh.qagpt.service.CorrectiveActionService;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.ClientAnchor;
@@ -48,6 +50,15 @@ public class ResultGeneratorImpl implements ResultGenerator {
             "조치\n담당자", "완료\n예정일", "조치\n완료일", "비고(시정조치계획)",
             "조치\n확인자", "조치\n확인일"
     };
+
+    private final CorrectiveActionRepository correctiveActionRepository; // 널 허용(미영속 폴백)
+    private final CorrectiveActionService correctiveActionService;
+
+    public ResultGeneratorImpl(CorrectiveActionRepository correctiveActionRepository,
+                               CorrectiveActionService correctiveActionService) {
+        this.correctiveActionRepository = correctiveActionRepository;
+        this.correctiveActionService = correctiveActionService;
+    }
 
     @Override
     public byte[] generateImprovedArtifact(ReviewResult result, byte[] originalContent, String fileName) {
@@ -199,13 +210,27 @@ public class ResultGeneratorImpl implements ResultGenerator {
             LocalDate baseDate = baseDate(result);
             writeCoverSheet(wb, textStyle, result, baseDate);
             writeRevisionSheet(wb, textStyle, baseDate);
-            writeActionSheet(wb, result, baseDate);
+            writeActionSheet(wb, loadActions(result), result, baseDate);
 
             wb.write(out);
             return out.toByteArray();
         } catch (Exception e) {
             throw new IllegalStateException("시정조치관리대장 생성 실패: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 대장 라인 로드 — 영속화된 시정조치 라인(조치 상태 반영) 우선, 미영속 결과(테스트 등)는
+     * 결함으로부터 즉석 매핑(폴백).
+     */
+    private List<CorrectiveAction> loadActions(ReviewResult result) {
+        if (correctiveActionRepository != null && result.getId() != null) {
+            List<CorrectiveAction> persisted = correctiveActionRepository.findByReviewResultId(result.getId());
+            if (!persisted.isEmpty()) {
+                return persisted;
+            }
+        }
+        return correctiveActionService.buildFromReview(result);
     }
 
     private final HwpxReviewReportWriter reportWriter = new HwpxReviewReportWriter();
@@ -250,13 +275,13 @@ public class ResultGeneratorImpl implements ResultGenerator {
     }
 
     // ── 시정조치서 ─────────────────────────────────────────────────
-    private void writeActionSheet(Workbook wb, ReviewResult result, LocalDate baseDate) {
+    private void writeActionSheet(Workbook wb, List<CorrectiveAction> actions,
+                                  ReviewResult result, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("시정조치서");
-        List<Defect> defects = result.getDefects();
 
-        int target = defects.size();
-        int done = 0; // 신규 생성 시점: 완료 0
-        int remaining = target - done;
+        int target = actions.size();
+        int done = (int) actions.stream().filter(a -> a.getStatus() == ActionStatus.DONE).count();
+        int remaining = target - done; // [spec §4.4] 완료건수 = 조치 상태(DONE) 실집계
         String stageLabel = result.getStage() == null ? "" : result.getStage().getLabel();
 
         // r0: 요약행 (PoC 셀 위치 재현)
@@ -284,40 +309,30 @@ public class ResultGeneratorImpl implements ResultGenerator {
             header.createCell(c).setCellValue(COLUMNS[c]);
         }
 
-        // r3+: 데이터
-        String reviewDate = baseDate == null ? "" : baseDate.format(SHORT);
-        String artifactName = artifactLabel(result.getDocument());
-        String fileName = result.getDocument() == null ? "" : nullToEmpty(result.getDocument().getFileName());
-
-        int pSeq = 0, wSeq = 0;
+        // r3+: 데이터 — 영속 시정조치 라인(조치 계획/확인 상태 포함)
         int r = 3;
-        for (Defect d : defects) {
-            boolean isProcess = d.getPerspective() == Perspective.PROCESS;
-            String no = isProcess
-                    ? String.format("CA_P%02d", ++pSeq)
-                    : String.format("CA_W%02d", ++wSeq);
-            String businessName = isProcess ? "프로젝트관리" : "개발산출물";
-
+        for (CorrectiveAction a : actions) {
             Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(no);
-            row.createCell(1).setCellValue(businessName);
+            row.createCell(0).setCellValue(nullToEmpty(a.getNo()));
+            row.createCell(1).setCellValue(nullToEmpty(a.getBusinessName()));
             row.createCell(2).setCellValue("공통");
-            row.createCell(3).setCellValue(reviewDate);
-            row.createCell(4).setCellValue(REVIEWER);
-            row.createCell(5).setCellValue(artifactName);
-            row.createCell(6).setCellValue(fileName);
-            row.createCell(7).setCellValue(location(d));
-            row.createCell(8).setCellValue(d.getSeverity() == null ? "" : d.getSeverity().getLabel());
-            row.createCell(9).setCellValue(d.getDefectType() == null ? "" : d.getDefectType().getLabel());
-            row.createCell(10).setCellValue(nullToEmpty(d.getDescription()));
-            // 시정조치 계획(11~14): 개선 방향을 시정조치 계획 비고로, 담당/일자는 미정
-            row.createCell(11).setCellValue("");
-            row.createCell(12).setCellValue("");
-            row.createCell(13).setCellValue("");
-            row.createCell(14).setCellValue(nullToEmpty(d.getImprovementGuide()));
-            // 시정조치 확인(15~16): 신규 → 미확인
-            row.createCell(15).setCellValue("");
-            row.createCell(16).setCellValue("");
+            row.createCell(3).setCellValue(a.getReviewDate() == null ? "" : a.getReviewDate().format(SHORT));
+            row.createCell(4).setCellValue(nullToEmpty(a.getReviewer()));
+            row.createCell(5).setCellValue(nullToEmpty(a.getArtifactName()));
+            row.createCell(6).setCellValue(nullToEmpty(a.getFileName()));
+            row.createCell(7).setCellValue(nullToEmpty(a.getNonconformityLocation()));
+            row.createCell(8).setCellValue(a.getImprovementType() == null ? "" : a.getImprovementType().getLabel());
+            row.createCell(9).setCellValue(a.getDefectType() == null ? "" : a.getDefectType().getLabel());
+            row.createCell(10).setCellValue(nullToEmpty(a.getNonconformityContent()));
+            // 시정조치 계획(11~14)
+            row.createCell(11).setCellValue(nullToEmpty(a.getAssignee()));
+            row.createCell(12).setCellValue(nullToEmpty(a.getPlannedDate()));
+            row.createCell(13).setCellValue(a.getStatus() == ActionStatus.DONE && a.getConfirmedDate() != null
+                    ? a.getConfirmedDate().format(SHORT) : "");
+            row.createCell(14).setCellValue(nullToEmpty(a.getActionPlan()));
+            // 시정조치 확인(15~16)
+            row.createCell(15).setCellValue(nullToEmpty(a.getConfirmation()));
+            row.createCell(16).setCellValue(a.getConfirmedDate() == null ? "" : a.getConfirmedDate().format(SHORT));
         }
     }
 
@@ -336,24 +351,7 @@ public class ResultGeneratorImpl implements ResultGenerator {
         return doc.getArtifactType().getLabel();
     }
 
-    private String location(Defect d) {
-        StringBuilder sb = new StringBuilder();
-        appendLoc(sb, "시트", d.getLocationSheet());
-        appendLoc(sb, "행", d.getLocationRow());
-        appendLoc(sb, "열", d.getLocationColumn());
-        appendLoc(sb, "ID", d.getLocationId());
-        return sb.toString();
-    }
-
-    private void appendLoc(StringBuilder sb, String key, String value) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        if (sb.length() > 0) {
-            sb.append(", ");
-        }
-        sb.append(key).append(":").append(value);
-    }
+    // (부적합 위치 문자열 매핑은 CorrectiveActionService.buildFromReview로 이동)
 
     private void setString(Sheet sheet, int rowIdx, int colIdx, String value) {
         Row row = sheet.getRow(rowIdx);
