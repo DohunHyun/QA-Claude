@@ -131,4 +131,55 @@ class HwpxReviewReportTest {
         String section = readZip(writer.write(r)).get("Contents/section0.xml");
         assertThat(section).contains("QA 예외 승인으로 통과 처리");
     }
+
+    @Test
+    void 항목별결과가_한컴표로_렌더된다() throws Exception {
+        // 결함 2건 → 표 3행(헤더+2) × 7열 = 21셀
+        ReviewResult r = new ReviewResult();
+        r.setStage(Stage.ANALYSIS);
+        r.setPassed(false);
+        for (int i = 0; i < 2; i++) {
+            Defect d = new Defect();
+            d.setSeverity(Severity.IMPROVEMENT);
+            d.setDefectType(DefectType.MISSING_REQUIRED);
+            d.setPerspective(Perspective.ARTIFACT);
+            d.setLocationSheet("본문");
+            d.setDescription("결함" + i);
+            r.addDefect(d);
+        }
+        String section = readZip(writer.write(r)).get("Contents/section0.xml");
+        // 표(hp:tbl) + 행/열 수 + 셀 수
+        assertThat(section).contains("<hp:tbl ");
+        assertThat(section).contains("rowCnt=\"3\"").contains("colCnt=\"7\"");
+        assertThat(countOf(section, "<hp:tc ")).isEqualTo(21);
+        // 표 헤더 컬럼명
+        assertThat(section).contains("결함유형").contains("근거위치").contains("개선 권고");
+        // 셀 테두리 참조 borderFill=2 (헤더에 SOLID로 선언)
+        assertThat(section).contains("borderFillIDRef=\"2\"");
+    }
+
+    @Test
+    void 제목이_굵게_가운데정렬_charPr과_paraPr로_선언된다() throws Exception {
+        Map<String, String> entries = readZip(writer.write(resultWithDefect()));
+        String header = entries.get("Contents/header.xml");
+        String section = entries.get("Contents/section0.xml");
+        // 제목용 charPr(id=1, bold), 가운데정렬 paraPr(id=1, CENTER)
+        assertThat(header).contains("<hh:charPr id=\"1\"").contains("<hh:bold/>");
+        assertThat(header).contains("<hh:paraPr id=\"1\"").contains("horizontal=\"CENTER\"");
+        // 표 셀용 SOLID 테두리(borderFill id=2)
+        assertThat(header).contains("<hh:borderFill id=\"2\"").contains("leftBorder type=\"SOLID\"");
+        // 제목 문단이 charPr=1로 렌더 + 첫 문단에 secPr 부착
+        assertThat(section).contains("charPrIDRef=\"1\"");
+        String firstPara = section.substring(section.indexOf("<hp:p id=\"0\""), section.indexOf("<hp:p id=\"1\""));
+        assertThat(firstPara).contains("<hp:secPr").contains("단계말 검토결과서");
+    }
+
+    private int countOf(String s, String sub) {
+        int c = 0, i = 0;
+        while ((i = s.indexOf(sub, i)) >= 0) {
+            c++;
+            i += sub.length();
+        }
+        return c;
+    }
 }
