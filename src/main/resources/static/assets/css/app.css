@@ -273,6 +273,8 @@ table.tbl thead th {
 table.tbl tbody tr:hover { background: #f8fafd; }
 table.tbl td.num, table.tbl th.num { text-align: center; white-space: nowrap; }
 table.tbl td.rt { text-align: right; }
+/* 파일명 등 공백 없는 긴 식별자 — 셀 폭 안에서 강제 줄바꿈 (이탈·겹침 방지) */
+table.tbl td.wrap-any { word-break: break-all; overflow-wrap: anywhere; }
 .tbl-scroll { overflow-x: auto; }
 
 /* 배지 / 상태 */
