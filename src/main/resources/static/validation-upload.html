@@ -8,7 +8,7 @@
 </head>
 <body data-nav="validate" data-page="validation-upload">
   <main class="main">
-    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 산출물 검증 <span class="sep">›</span> 산출물 업로드</div>
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 산출물 업로드</div>
     <div class="page-head">
       <div><h1>산출물 업로드 · 검증</h1>
       <p>HWPX · Excel · PPTX 혼합 다중 업로드 → AI가 유형을 자동 인식하고 체크리스트 기반 4-Phase 검증을 수행합니다.</p></div>
@@ -46,30 +46,6 @@
           </div>
           <div id="fileName" class="muted" style="margin-top:8px"></div>
         </form>
-      </div>
-    </section>
-
-    <!-- 진행 -->
-    <section class="panel" id="progressPanel" style="display:none">
-      <div class="p-head"><h2>3. 검증 진행 (4-Phase)</h2><span class="more" id="phaseTag"></span></div>
-      <div class="p-body">
-        <div class="steps" id="phases">
-          <div class="st" data-i="0"><span class="n">1</span>표준 보증</div>
-          <div class="st" data-i="1"><span class="n">2</span>요구사항 품질</div>
-          <div class="st" data-i="2"><span class="n">3</span>정합성 체크</div>
-          <div class="st" data-i="3"><span class="n">4</span>결과물 생성</div>
-        </div>
-        <div class="progress" style="margin-top:12px"><span id="bar" style="width:0%"></span></div>
-      </div>
-    </section>
-
-    <!-- 결과 요약 -->
-    <section class="panel" id="resultPanel" style="display:none">
-      <div class="p-head"><h2>4. 검증 결과</h2><a class="more" href="validation-result.html">상세 결과 ›</a></div>
-      <div class="p-body">
-        <div id="summary"></div>
-        <div id="defects" style="margin-top:10px"></div>
-        <div id="artifacts" style="margin-top:14px"></div>
       </div>
     </section>
 
@@ -161,11 +137,11 @@
     }
 
     // 검증 실행 — 1개면 /api/validate, 2개 이상이면 /api/validate-batch (파일별 자동 인식)
+    // 업로드 완료 후에는 화면 내 진행 표시 없이 안내 alert → 이후 과정은 검토 현황에서 확인.
     $('#uploadForm').on('submit', function(ev){
       ev.preventDefault();
       var fs = Array.prototype.slice.call($file[0].files);
       if(!fs.length){ alert('파일을 선택하세요.'); return; }
-      $('#progressPanel').show(); runPhases();
 
       var fd = new FormData();
       var pid = currentProject ? currentProject.id : $('#projSel').val();
@@ -180,82 +156,15 @@
         fs.forEach(function(f){ fd.append('files', f); });
       }
 
-      $('#submitBtn').prop('disabled', true).text('검증 중…');
+      $('#submitBtn').prop('disabled', true).text('업로드 중…');
       $.ajax({ url:url, type:'POST', data:fd, processData:false, contentType:false })
-        .done(function(res){ Array.isArray(res) ? renderBatchResult(res, fs) : renderResult(res); })
-        .fail(function(){ renderMock(fs); })  // 미연결 → 목업 결과
-        .always(function(){ $('#submitBtn').prop('disabled',false).text('검증 실행'); });
+        .always(function(){
+          $('#submitBtn').prop('disabled', false).text('검증 실행');
+          $file.val('');
+          showFile();
+          alert('검증을 시작합니다. 이후 과정은 검토 현황에서 확인해주세요.');
+        });
     });
-
-    function runPhases(){
-      $('.st').removeClass('done cur'); $('#bar').css('width','0%');
-      var i = 0;
-      var t = setInterval(function(){
-        $('.st').eq(i).addClass('cur').prev().removeClass('cur').addClass('done');
-        $('#bar').css('width', ((i+1)/4*100)+'%');
-        $('#phaseTag').text('Phase '+(i+1)+'/4');
-        if(++i >= 4){ clearInterval(t); $('.st').removeClass('cur').addClass('done'); }
-      }, 450);
-    }
-
-    function defectTable(defects){
-      var rows = (defects||[]).map(function(d){
-        return '<tr><td class="num">'+M.sevBadge(d.severity)+'</td><td class="num">'+e(d.defectType)+'</td>'
-          +'<td class="num">'+e(d.perspective)+'</td><td>'+e(d.location)+'</td><td>'+e(d.description)+'</td><td>'+e(d.improvementGuide)+'</td></tr>';
-      }).join('');
-      return '<div class="tbl-scroll"><table class="tbl"><thead><tr><th class="num">판정</th><th class="num">결함유형</th><th class="num">관점</th><th>근거위치</th><th>내용</th><th>개선방향</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
-    }
-
-    function renderResult(res){
-      $('#resultPanel').show();
-      if(res.passed){
-        $('#summary').html('<span class="state done" style="font-size:14px">✔ 결함 없음 · 통과</span> <span class="muted">(검토 #'+res.reviewId+')</span>');
-        $('#defects').empty();
-      } else {
-        $('#summary').html('<span class="state fail" style="font-size:14px">✘ '+e(res.message||'개선/권고 항목 발견')+'</span> <span class="muted">(검토 #'+res.reviewId+')</span>');
-        $('#defects').html(defectTable(res.defects));
-      }
-      renderArtifacts();
-    }
-
-    // 다중 업로드 결과 — 파일별 판정 + 결함표
-    function renderBatchResult(list, fs){
-      $('#resultPanel').show();
-      var failed = list.filter(function(r){ return !r.passed; }).length;
-      $('#summary').html(failed
-        ? '<span class="state fail" style="font-size:14px">✘ '+list.length+'개 파일 중 '+failed+'개 결함 발견</span>'
-        : '<span class="state done" style="font-size:14px">✔ '+list.length+'개 파일 모두 통과</span>');
-      $('#defects').html(list.map(function(r, i){
-        var name = fs[i] ? fs[i].name : ('파일 '+(i+1));
-        var head = '<div style="margin:14px 0 6px"><b>'+e(name)+'</b> '
-          + (r.artifactTypeLabel ? '<span class="pill">'+e(r.artifactTypeLabel)+'</span> ' : '')
-          + (r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">'+e(r.message||'결함 발견')+'</span>')
-          + ' <span class="muted">(검토 #'+r.reviewId+')</span></div>';
-        return head + (r.passed ? '' : defectTable(r.defects));
-      }).join(''));
-      renderArtifacts();
-    }
-
-    function renderMock(fs){
-      $('#resultPanel').show();
-      var n = fs ? fs.length : 1;
-      $('#summary').html('<span class="state fail" style="font-size:14px">✘ '+(n>1 ? n+'개 파일 · ' : '')+'개선 3건 · 권고 5건</span> <span class="muted">(목업 시연 · 백엔드 미연결)</span>');
-      var d = M.DEFECTS.slice(0,4);
-      $('#defects').html('<div class="tbl-scroll"><table class="tbl"><thead><tr><th class="num">판정</th><th class="num">결함유형</th><th class="num">관점</th><th>근거위치</th><th>내용</th></tr></thead><tbody>'
-        + d.map(function(x){ return '<tr><td class="num">'+M.sevBadge(x.sev)+'</td><td class="num">'+e(x.dtype)+'</td><td class="num">'+e(x.persp)+'</td><td>'+e(x.loc)+'</td><td>'+e(x.desc)+'</td></tr>'; }).join('')
-        + '</tbody></table></div>');
-      renderArtifacts();
-    }
-
-    function renderArtifacts(){
-      $('#artifacts').html(
-        '<div class="p-head" style="border:0;padding:0 0 8px"><h2>생성 결과물</h2></div>'
-        +'<ul class="dl-list">'
-        +'<li><span class="ico">XLSX</span><div class="meta"><b>AI 개선 산출물</b><div>원본 포맷 유지 · [개선] 태그 삽입</div></div><a class="btn sm sec" href="review-report.html#improved">다운로드</a></li>'
-        +'<li><span class="ico">XLSX</span><div class="meta"><b>시정조치관리대장</b><div>표지·개정이력·시정조치서 3시트</div></div><a class="btn sm sec" href="corrective-actions.html">열기</a></li>'
-        +'<li><span class="ico">HWPX</span><div class="meta"><b>단계말 검토결과서</b><div>QA 승인 후 최종 발급</div></div><a class="btn sm sec" href="review-report.html">열기</a></li>'
-        +'</ul>');
-    }
   </script>
 </body>
 </html>
