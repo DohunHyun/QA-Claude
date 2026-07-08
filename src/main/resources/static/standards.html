@@ -81,11 +81,82 @@
           +'<td class="num">'+e(a.code)+'</td><td><b>'+e(a.name)+'</b></td>'
           +'<td class="muted">'+e(file)+'.md</td>'
           +'<td class="num">'+(a.wired?'<span class="state done">연결</span>':'<span class="state wait">S2</span>')+'</td>'
-          +'<td class="num"><button class="btn sm sec">기준 보기</button></td></tr>';
+          +'<td class="num"><button class="btn sm sec" data-file="'+e(file)+'" data-name="'+e(a.name)+'">기준 보기</button></td></tr>';
       }).join('');
     }
     render('');
     document.getElementById('stageSel').addEventListener('change', function(){ render(this.value); });
+
+    // ── 기준 보기: checklists/<file>.md fetch → 모달 렌더 ──
+    document.getElementById('rows').addEventListener('click', function(ev){
+      var btn = ev.target.closest('button[data-file]');
+      if(!btn) return;
+      var file = btn.getAttribute('data-file'), name = btn.getAttribute('data-name');
+      if(file === '-'){ alert('이 항목은 체크리스트 문서가 없습니다.'); return; }
+      openModal(name, '<div class="muted">불러오는 중…</div>');
+      fetch('checklists/' + file + '.md')
+        .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function(md){ setModalBody(mdToHtml(md)); })
+        .catch(function(){ setModalBody('<div class="muted">체크리스트를 불러오지 못했습니다. (checklists/' + e(file) + '.md)</div>'); });
+    });
+
+    function openModal(title, body){
+      closeModal();
+      var back = document.createElement('div');
+      back.className = 'modal-back'; back.id = 'mdModal';
+      back.innerHTML = '<div class="modal">'
+        + '<div class="m-head"><h2>' + e(title) + ' — 검증 기준</h2>'
+        + '<button class="m-close" title="닫기">×</button></div>'
+        + '<div class="m-body" id="mdBody">' + body + '</div></div>';
+      document.body.appendChild(back);
+      back.addEventListener('click', function(ev){ if(ev.target === back || ev.target.closest('.m-close')) closeModal(); });
+      document.addEventListener('keydown', escClose);
+    }
+    function setModalBody(html){ var b = document.getElementById('mdBody'); if(b) b.innerHTML = html; }
+    function closeModal(){ var m = document.getElementById('mdModal'); if(m) m.remove(); document.removeEventListener('keydown', escClose); }
+    function escClose(ev){ if(ev.key === 'Escape') closeModal(); }
+
+    // 간이 마크다운 렌더러 (h1~h3 · 표 · 리스트 · 굵게 · 코드 · 구분선 · [개선]/[권고] 배지)
+    function mdToHtml(md){
+      var inline = function(s){
+        return e(s)
+          .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\[개선\]/g, '<span class="badge 개선">개선</span>')
+          .replace(/\[권고\]/g, '<span class="badge 권고">권고</span>');
+      };
+      var lines = md.split(/\r?\n/), out = [], list = false, tbl = null;
+      var flushList = function(){ if(list){ out.push('</ul>'); list = false; } };
+      var flushTbl = function(){
+        if(!tbl) return;
+        var head = tbl.shift() || [];
+        out.push('<div class="tbl-scroll"><table class="tbl"><thead><tr>'
+          + head.map(function(c){ return '<th>' + inline(c) + '</th>'; }).join('') + '</tr></thead><tbody>'
+          + tbl.map(function(r){ return '<tr>' + r.map(function(c){ return '<td>' + inline(c) + '</td>'; }).join('') + '</tr>'; }).join('')
+          + '</tbody></table></div>');
+        tbl = null;
+      };
+      lines.forEach(function(ln){
+        var t = ln.trim();
+        if(/^\|/.test(t)){
+          flushList();
+          var cells = t.replace(/^\||\|$/g, '').split('|').map(function(c){ return c.trim(); });
+          if(/^[-:\s|]+$/.test(t.replace(/\|/g, ''))) return;   // 구분행 skip
+          (tbl = tbl || []).push(cells);
+          return;
+        }
+        flushTbl();
+        if(t === ''){ flushList(); return; }
+        if(/^---+$/.test(t)){ flushList(); out.push('<hr>'); return; }
+        if(/^### /.test(t)){ flushList(); out.push('<h4>' + inline(t.slice(4)) + '</h4>'); return; }
+        if(/^## /.test(t)){ flushList(); out.push('<h3>' + inline(t.slice(3)) + '</h3>'); return; }
+        if(/^# /.test(t)){ flushList(); out.push('<h2>' + inline(t.slice(2)) + '</h2>'); return; }
+        if(/^[-*] /.test(t)){ if(!list){ out.push('<ul>'); list = true; } out.push('<li>' + inline(t.slice(2)) + '</li>'); return; }
+        out.push('<div>' + inline(t) + '</div>');
+      });
+      flushList(); flushTbl();
+      return out.join('');
+    }
   </script>
 </body>
 </html>
