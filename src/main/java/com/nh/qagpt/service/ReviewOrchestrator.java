@@ -51,6 +51,7 @@ public class ReviewOrchestrator {
     private final ReviewResultRepository reviewResultRepository;
     private final DocumentRepository documentRepository;
     private final FileStorageService fileStorage;
+    private final CorrectiveActionService correctiveActionService;
     /** [S8/후속] 교차 정합성용 요약 추출 (상태 없음). */
     private final ArtifactSummaryExtractor summaryExtractor = new ArtifactSummaryExtractor();
 
@@ -60,7 +61,8 @@ public class ReviewOrchestrator {
                               LlmChecklistEvaluator llmEvaluator,
                               ReviewResultRepository reviewResultRepository,
                               DocumentRepository documentRepository,
-                              FileStorageService fileStorage) {
+                              FileStorageService fileStorage,
+                              CorrectiveActionService correctiveActionService) {
         this.parserRouter = parserRouter;
         this.classifier = classifier;
         this.checklistEngine = checklistEngine;
@@ -68,6 +70,7 @@ public class ReviewOrchestrator {
         this.reviewResultRepository = reviewResultRepository;
         this.documentRepository = documentRepository;
         this.fileStorage = fileStorage;
+        this.correctiveActionService = correctiveActionService;
     }
 
     /**
@@ -85,7 +88,9 @@ public class ReviewOrchestrator {
             result.setStatus(ReviewStatus.FAILED);
             throw e; // 파싱 실패 등은 상위(예외 핸들러)에서 사용자 메시지로 변환
         }
-        return reviewResultRepository.save(result);
+        ReviewResult saved = reviewResultRepository.save(result);
+        correctiveActionService.createFromReview(saved); // [spec §4.4] 시정조치 라인 영속화(매 검증마다)
+        return saved;
     }
 
     /**
@@ -113,7 +118,11 @@ public class ReviewOrchestrator {
             log.warn("비동기 검증 실패(document={}): {}", documentId, e.getMessage());
             result.setStatus(ReviewStatus.FAILED);
         }
-        return CompletableFuture.completedFuture(reviewResultRepository.save(result));
+        ReviewResult saved = reviewResultRepository.save(result);
+        if (saved.getStatus() == ReviewStatus.COMPLETED) {
+            correctiveActionService.createFromReview(saved); // [spec §4.4] 시정조치 라인 영속화
+        }
+        return CompletableFuture.completedFuture(saved);
     }
 
     /** 검증 코어: 파싱→유형확정→회차→규칙+LLM 판정→통과여부→교차정합 요약. 예외는 호출측에서 처리. */

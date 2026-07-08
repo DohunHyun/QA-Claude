@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** [S5] AI 개선 산출물 — 원본 구조 유지 + [개선] 태그(코멘트), 빈 항목 미기입, 권고 미반영. */
 class ImprovedArtifactTest {
 
-    private final ResultGeneratorImpl generator = new ResultGeneratorImpl();
+    private final ResultGeneratorImpl generator = new ResultGeneratorImpl(null, new com.nh.qagpt.service.CorrectiveActionService(null));
 
     /** 본문 시트: 헤더[단위업무명, 배치Job ID], 데이터[여신, (빈칸)]. */
     private byte[] originalXlsx() throws Exception {

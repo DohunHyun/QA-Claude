@@ -41,4 +41,13 @@ public class ProjectController {
                 .map(ProjectResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("프로젝트 없음: " + id));
     }
+
+    /** [spec §7.1-2] 관리자 승인 — 프로젝트 활성화(검증 절차 시작 가능). */
+    @PostMapping("/{id}/approve")
+    public ProjectResponse approve(@PathVariable Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("프로젝트 없음: " + id));
+        project.setStatus(com.nh.qagpt.domain.enums.ProjectStatus.ACTIVE);
+        return ProjectResponse.from(projectRepository.save(project));
+    }
 }
