@@ -1,0 +1,4 @@
+# 테스트 전용 오버라이드 — 업로드 저장을 build/ 아래로 격리 (작업트리 오염 방지)
+qagpt:
+  storage:
+    dir: build/test-uploads

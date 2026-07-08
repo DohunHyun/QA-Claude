@@ -21,6 +21,9 @@ spring:
 
 # Claude API 연동 (WebClientConfig / ClaudeClientImpl)
 qagpt:
+  # 업로드 산출물 원본 저장 경로 (FileStorageService — .gitignore 처리됨)
+  storage:
+    dir: uploads
   claude:
     base-url: https://api.anthropic.com
     api-key: ${CLAUDE_API_KEY:}
