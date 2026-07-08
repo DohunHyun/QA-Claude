@@ -35,6 +35,7 @@ static/
 ├── standards.html          # 업무표준 — 체크리스트 12종 + 결함 판정체계
 ├── statistics.html         # 현황/통계 — 범위(전체/프로젝트) 선택 동적 집계
 ├── _skeleton.html          # API 연결 스켈레톤 백업 (신버전 — QA승인·교차정합성 포함)
+├── checklists/             # 체크리스트 md 12종 (docs/checklists/ 미러 — standards '기준 보기'가 fetch)
 └── assets/
     ├── css/app.css         # iQMS 테마 전체 (단색 네이비 헤더 #102a4e)
     └── js/
@@ -135,6 +136,7 @@ localStorage.removeItem('qagpt.reports')        // 검토결과서 발급 기록
 - **validation-progress** → **프로젝트 선택 드롭다운 + 단계 필터**. 선택 프로젝트의 진행 중(RUNNING) 4-Phase 패널 + 검증 큐/이력(`M.REVIEWS` project 필터). 행 클릭 → `validation-result.html?reviewId=`.
 - **validation-result** → **프로젝트 + 검토 회차 2단 드롭다운**. `?reviewId=`(프로젝트 자동 역추적) / `?projectId=` 지원. 선택 회차 기준 헤더·KPI·판정·Phase·결함 상세(`M.DEFECTS` 산출물명 필터)·결과물 동적 렌더. 통과=결함없음, 진행중=안내.
 - **corrective-actions** → **프로젝트 선택 드롭다운** + 판정/조치상태/검색 필터. `M.defectsFor(code)`로 §4.4 3그룹 17열 스키마 렌더, 대상/완료/잔여·기준일을 **프로젝트별 집계**. `?projectId=` 지원.
+- **standards** → 체크리스트 12종 표(단계 필터) + **"기준 보기" 버튼**: `checklists/<file>.md` fetch → 간이 md 렌더러(제목·표·리스트·`[개선]`/`[권고]` 배지)로 **모달**(app.css `.modal-back`/`.modal`, ESC·배경클릭 닫기) 표시. ⚠️ `static/checklists/`는 `docs/checklists/`의 미러 — 원본(docs) 수정 시 복사 필요.
 
 ## 5. 백엔드 연동 지점 (실 API vs 목업)
 
