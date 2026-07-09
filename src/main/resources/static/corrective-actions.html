@@ -15,6 +15,9 @@
       <div class="btn-row"><button class="btn sec" data-role="PM,QA" data-role-mode="disable">＋ 개정이력</button><button class="btn">Excel 다운로드</button></div>
     </div>
 
+    <!-- 실제 검토 결과 기반 다운로드 (백엔드 연동 · 미연동 시 아래 목업만 표시) -->
+    <div id="realBar"></div>
+
     <!-- 프로젝트 / 필터 -->
     <div class="filterbar">
       <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
@@ -128,6 +131,33 @@
       document.getElementById('detail').innerHTML=html;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
     }
+  </script>
+  <script>
+    // 실 API 연동: 검토 목록을 불러와 선택 → 실제 시정조치관리대장(Excel) 다운로드.
+    // 백엔드 미연동/무이력 시 이 바는 숨고 아래 목업이 그대로 표시된다.
+    (function(){
+      var box=document.getElementById('realBar');
+      var pre=new URLSearchParams(location.search).get('reviewId');
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+        .then(function(list){
+          if(!list.length) return;   // 이력 없으면 목업만
+          box.innerHTML='<section class="panel" style="border:1.5px solid #284b8a55">'
+            +'<div class="p-head"><h2>실제 시정조치관리대장 다운로드</h2><span class="more">Claude 검증 결과 기반 · Excel(.xlsx)</span></div>'
+            +'<div class="p-body inline" style="gap:12px">'
+            +'<label class="soft" style="font-weight:700">검토 회차</label>'
+            +'<select id="realRev" style="max-width:480px">'
+            + list.map(function(x){ return '<option value="'+x.reviewId+'">#'+x.reviewId+' · '+M.esc(x.artifactLabel||'미분류')+' · 결함 '+x.defectCount+'건 · '+(x.passed?'통과':'미통과')+'</option>'; }).join('')
+            +'</select>'
+            +'<a class="btn" id="realDl" style="margin-left:auto">＋ Excel 다운로드</a>'
+            +'</div></section>';
+          var sel=document.getElementById('realRev');
+          if(pre && list.some(function(x){return String(x.reviewId)===String(pre);})) sel.value=pre;
+          function sync(){ document.getElementById('realDl').href='/api/reviews/'+sel.value+'/corrective-action-ledger'; }
+          sel.addEventListener('change', sync); sync();
+        })
+        .catch(function(){ /* 백엔드 미연동 — 목업만 표시 */ });
+    })();
   </script>
 </body>
 </html>
