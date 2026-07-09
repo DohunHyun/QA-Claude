@@ -18,8 +18,8 @@
     <!-- 프로젝트 / 필터 -->
     <div class="filterbar">
       <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
-      <div class="fg"><label>판정</label><select id="sevSel"><option value="">전체</option><option>개선</option><option>권고</option></select></div>
-      <div class="fg"><label>조치상태</label><select id="statSel"><option value="">전체</option><option value="TARGET">대상</option><option value="IN_PROGRESS">조치중</option><option value="DONE">완료</option></select></div>
+      <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
+      <div class="fg"><label>회차</label><select id="roundSel"><option value="">전체</option></select></div>
       <div class="fg"><label>검색</label><input type="text" id="q" placeholder="산출물 · 결함내용"></div>
       <div class="spacer"></div>
       <span class="muted" id="scopeTag"></span>
@@ -51,11 +51,21 @@
       var pid=params.get('projectId');
       var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
       document.getElementById('projSel').value=String(sel.id);
+      fillRounds();
       render();
       document.getElementById('projSel').addEventListener('change', function(){
-        history.replaceState(null,'','corrective-actions.html?projectId='+this.value); render(); });
-      ['sevSel','statSel'].forEach(function(id){ document.getElementById(id).addEventListener('change', render); });
+        history.replaceState(null,'','corrective-actions.html?projectId='+this.value); fillRounds(); render(); });
+      ['stageSel','roundSel'].forEach(function(id){ document.getElementById(id).addEventListener('change', render); });
       document.getElementById('q').addEventListener('input', render);
+    }
+
+    // 회차 드롭다운 — 선택 프로젝트 결함의 회차(distinct)로 채움
+    function fillRounds(){
+      var p=curProject(); if(!p) return;
+      var rounds=[]; M.defectsFor(p.code).forEach(function(d){ if(rounds.indexOf(d.round)===-1) rounds.push(d.round); });
+      rounds.sort(function(a,b){return a-b;});
+      document.getElementById('roundSel').innerHTML='<option value="">전체</option>'
+        + rounds.map(function(r){ return '<option value="'+r+'">'+r+'회차</option>'; }).join('');
     }
 
     function curProject(){
@@ -66,13 +76,13 @@
     function render(){
       var p=curProject(); if(!p) return;
       var all=M.defectsFor(p.code);
-      // 필터 적용
-      var sev=document.getElementById('sevSel').value;
-      var stat=document.getElementById('statSel').value;
+      // 필터 적용 — 단계 · 회차 · 검색
+      var stageF=document.getElementById('stageSel').value;
+      var roundF=document.getElementById('roundSel').value;
       var q=(document.getElementById('q').value||'').trim();
       var D=all.filter(function(d){
-        if(sev && d.sev!==sev) return false;
-        if(stat && d.status!==stat) return false;
+        if(stageF && d.stage!==stageF) return false;
+        if(roundF && String(d.round)!==String(roundF)) return false;
         if(q && (e(d.artifact)+e(d.desc)+e(d.no)).indexOf(q)===-1) return false;
         return true;
       });
