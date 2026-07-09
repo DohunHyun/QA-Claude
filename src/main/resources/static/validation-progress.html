@@ -73,8 +73,7 @@
       var html='';
       if(running.length){
         html += running.map(function(r){
-          return '<section class="panel"><div class="p-head"><h2>진행 중 검증 · '+e(r.artifactLabel)+' #'+r.reviewId+'</h2>'
-            +'<span class="more">'+r.round+'회차 · '+e(r.stage)+'단계</span></div><div class="p-body">'
+          return '<section class="panel"><div class="p-body">'
             +'<div class="steps">'
             +'<div class="st done"><span class="n">✓</span>Phase1 표준 보증</div>'
             +'<div class="st done"><span class="n">✓</span>Phase2 요구사항 품질</div>'
