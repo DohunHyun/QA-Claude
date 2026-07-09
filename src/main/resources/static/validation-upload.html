@@ -8,10 +8,10 @@
 </head>
 <body data-nav="validate" data-page="validation-upload">
   <main class="main">
-    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 산출물 업로드</div>
+    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 단계별 검증</div>
     <div class="page-head">
       <div><h1>산출물 업로드 · 검증</h1>
-      <p>HWPX · Excel · PPTX 혼합 다중 업로드 → AI가 유형을 자동 인식하고 체크리스트 기반 4-Phase 검증을 수행합니다.</p></div>
+      <p>HWPX · Excel · PPTX 혼합 다중 업로드 → AI가 유형을 자동 인식하고 체크리스트 기반 검증을 수행합니다.</p></div>
     </div>
 
     <div class="note" id="stageGuide" style="display:none;margin-bottom:14px;"></div>
@@ -22,9 +22,6 @@
       <div class="p-body inline">
         <label class="soft" style="font-weight:700">프로젝트</label>
         <select id="projSel" style="max-width:360px"></select>
-        <input type="text" id="loadProjId" placeholder="ID 직접 입력" style="max-width:150px">
-        <button class="btn sm sec" id="loadProjBtn">불러오기</button>
-        <span id="projInfo" class="muted"></span>
       </div>
     </section>
 
@@ -39,18 +36,12 @@
             <input type="file" id="file" accept=".xlsx,.hwpx,.pptx" multiple style="display:none">
           </div>
           <div class="inline" style="margin-top:12px">
-            <label class="soft" style="font-weight:700">산출물 유형</label>
-            <select id="artifactType" style="max-width:280px"></select>
-            <span class="muted">자동 인식 · 필요 시 수동 지정</span>
             <div style="margin-left:auto"><button class="btn" type="submit" id="submitBtn" data-role="PM" data-role-mode="disable">검증 실행</button></div>
           </div>
           <div id="fileName" class="muted" style="margin-top:8px"></div>
         </form>
       </div>
     </section>
-
-    <!-- 안내 -->
-    <div class="note">S1/S2 안내: 현재 <b>배치Job목록(AN07)</b>은 규칙 검증(필수컬럼·명명규칙 등)이 실 API에 연결돼 있습니다. 나머지 유형은 Claude 검증 엔진(S2) 연동 진행 중이며, 미연결 시 화면은 목업으로 시연됩니다.</div>
   </main>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -58,17 +49,11 @@
   <script src="assets/js/session.js"></script>
   <script src="assets/js/layout.js"></script>
   <script>
-    var M = window.MOCK, e = M.esc, currentProject = null;
+    var M = window.MOCK, e = M.esc;
     var params = new URLSearchParams(location.search);
     var stage = params.get('stage');                 // MANAGEMENT / ANALYSIS / DESIGN
     var STAGE_KR = { MANAGEMENT:'관리', ANALYSIS:'분석', DESIGN:'설계' };
     var stageKr = STAGE_KR[stage] || null;
-
-    // 유형 드롭다운 (stage 지정 시 해당 단계 산출물만)
-    var artList = M.ARTIFACTS.filter(function(a){ return !stageKr || a.stage === stageKr; });
-    $('#artifactType').html('<option value="">— 자동 인식 —</option>' + artList.map(function(a){
-      return '<option value="'+a.type+'">['+e(a.stage)+'] '+e(a.name)+' ('+e(a.code)+')'+(a.wired?'':' · S2 예정')+'</option>';
-    }).join(''));
 
     // 프로젝트 목록 — 승인(ACTIVE/APPROVED)된 프로젝트만 검증 가능
     var projList = M.validatableProjects();
@@ -91,18 +76,14 @@
     var pidParam = params.get('projectId');
     if (pidParam && !noApproved) {
       var hit = projList.filter(function(p){ return String(p.id) === String(pidParam); })[0];
-      if (hit) {
-        $('#projSel').val(String(hit.id));
-        setProject({ id:hit.id, name:hit.name, code:hit.code, status:hit.status });
-      }
+      if (hit) $('#projSel').val(String(hit.id));
     }
 
     // 단계 안내 배너 + 태그
     if (stageKr && !noApproved) {
       $('#projTag').html('<span class="pill">'+e(stageKr)+'단계</span>');
       $('#stageGuide').html(
-        '<b>'+e(stageKr)+'산출물</b> 업로드 단계입니다. 아래에서 산출물 유형은 '+e(stageKr)+'단계로 한정 표시됩니다.' +
-        (stageKr==='관리' ? ' (문서작성지침서 · 테일러링결과서 · 요구사항추적표)' : '')
+        '<b>'+e(stageKr)+'산출물</b> 업로드 단계입니다. 업로드한 파일은 '+e(stageKr)+'단계 산출물로 자동 인식·검증됩니다.'
       ).show();
     }
 
@@ -119,21 +100,6 @@
       if(!fs.length){ $('#fileName').empty(); return; }
       var items = fs.map(function(f){ return '<li><b>'+e(f.name)+'</b> ('+Math.round(f.size/1024)+' KB)</li>'; }).join('');
       $('#fileName').html('선택됨 <b>'+fs.length+'</b>개 파일:<ul style="margin:4px 0 0 18px">'+items+'</ul>');
-      // 다중 업로드는 배치 API가 유형을 파일별 자동 인식 → 수동 지정 비활성화
-      var multi = fs.length > 1;
-      $('#artifactType').prop('disabled', multi);
-      if(multi) $('#artifactType').val('');
-    }
-
-    // 프로젝트 불러오기 (실 API)
-    $('#loadProjBtn').on('click', function(){
-      var id = $('#loadProjId').val().trim(); if(!id){ alert('프로젝트 ID를 입력하세요.'); return; }
-      $.get('/api/projects/'+encodeURIComponent(id)).done(setProject)
-        .fail(function(){ $('#projInfo').html('<span class="err">불러오기 실패 (백엔드 미연결일 수 있음)</span>'); });
-    });
-    function setProject(res){
-      currentProject = res;
-      $('#projInfo').html('<span class="pill">선택됨</span> <b>'+e(res.name)+'</b> ('+e(res.code)+' · #'+res.id+')');
     }
 
     // 검증 실행 — 1개면 /api/validate, 2개 이상이면 /api/validate-batch (파일별 자동 인식)
@@ -144,13 +110,12 @@
       if(!fs.length){ alert('파일을 선택하세요.'); return; }
 
       var fd = new FormData();
-      var pid = currentProject ? currentProject.id : $('#projSel').val();
+      var pid = $('#projSel').val();
       if(pid) fd.append('projectId', pid);
       var url;
       if(fs.length === 1){
         url = '/api/validate';
         fd.append('file', fs[0]);
-        var t = $('#artifactType').val(); if(t) fd.append('artifactType', t);
       } else {
         url = '/api/validate-batch';
         fs.forEach(function(f){ fd.append('files', f); });

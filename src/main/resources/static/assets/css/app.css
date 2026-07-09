@@ -53,19 +53,33 @@ a { color: inherit; text-decoration: none; }
 .brand {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 25px;               /* 상단 네비 메뉴(13.5px)보다 확실히 크게 */
   letter-spacing: .3px;
-  margin-right: 26px;
+  margin-right: 30px;
   white-space: nowrap;
 }
 .brand .dot {
-  width: 11px; height: 11px; border-radius: 50%;
+  width: 15px; height: 15px; border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(244,144,30,.25);
+  box-shadow: 0 0 0 4px rgba(244,144,30,.25);
 }
-.brand small { font-weight: 500; font-size: 11px; opacity: .7; }
+.brand small { font-weight: 500; font-size: 12px; opacity: .7; }
+
+/* ── 품질검증 배너 (대시보드 상단, NH TMS+ 스타일) ─────── */
+.qbanner {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px;
+  background: linear-gradient(100deg, #e7f0ff 0%, #f2f8ff 46%, #edf7ef 100%);
+  min-height: 118px; display: flex; align-items: center;
+}
+.qbanner .qb-text { padding: 20px 28px; z-index: 1; }
+.qbanner .qb-text h2 { margin: 0; font-size: 23px; font-weight: 800; color: var(--navy-2); }
+.qbanner .qb-text p { margin: 7px 0 0; font-size: 13px; color: #4a6b8a; }
+.qbanner .qb-art { margin-left: auto; align-self: stretch; display: flex; align-items: center; padding-right: 10px; }
+.qbanner .qb-art svg { height: 118px; display: block; }
+@media (max-width: 780px){ .qbanner .qb-art { display: none; } }
 
 .top-nav { display: flex; align-items: center; gap: 2px; height: 100%; }
 .top-nav a {

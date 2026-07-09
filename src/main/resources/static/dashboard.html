@@ -8,15 +8,46 @@
 </head>
 <body data-nav="portal" data-page="dashboard">
   <main class="main">
-    <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 나의업무 <span class="sep">›</span> 나의 현황</div>
     <div class="page-head">
-      <div>
-        <h1>나의 현황</h1>
-        <p>담당 프로젝트의 검증 진행 상황과 처리할 업무를 한 곳에서 확인합니다.</p>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <h1>나의 현황</h1>
+          <p>담당 프로젝트의 검증 진행 상황과 처리할 업무를 한 곳에서 확인합니다.</p>
+        </div>
+        <div class="fg"><label class="soft" style="font-weight:700;margin-right:6px">프로젝트</label>
+          <select id="dashProjSel" style="max-width:320px"></select></div>
       </div>
       <div class="btn-row">
         <a class="btn sec" href="project-new.html" data-role="PM">＋ 프로젝트 신청</a>
         <a class="btn" href="validation-upload.html" data-role="PM">산출물 검증 시작</a>
+      </div>
+    </div>
+
+    <!-- 품질검증 배너 (NH TMS+ 스타일) -->
+    <div class="qbanner">
+      <div class="qb-text">
+        <h2>QA-Claude 품질검증 포털이 함께합니다</h2>
+        <p>AI가 산출물을 검토하고 시정조치·검토결과서까지 — 쉬운 품질관리, 빠른 검토.</p>
+      </div>
+      <div class="qb-art" aria-hidden="true">
+        <svg viewBox="0 0 360 118" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 92 C90 60 150 108 250 70 C310 48 340 60 360 52" fill="none" stroke="#bcd3f5" stroke-width="2.5" opacity=".8"/>
+          <path d="M0 104 C80 84 160 118 260 88 C320 70 345 80 360 74" fill="none" stroke="#cfe6d6" stroke-width="2.5" opacity=".8"/>
+          <ellipse cx="316" cy="30" rx="12" ry="7" fill="#8fd6a6" opacity=".55" transform="rotate(-20 316 30)"/>
+          <ellipse cx="338" cy="22" rx="9" ry="5" fill="#a7e0b8" opacity=".55" transform="rotate(-20 338 22)"/>
+          <!-- 문서 + 체크 -->
+          <rect x="150" y="26" width="60" height="72" rx="6" fill="#fff" stroke="#c6d4e8" stroke-width="2"/>
+          <rect x="162" y="40" width="30" height="4" rx="2" fill="#c9d6ea"/>
+          <rect x="162" y="52" width="36" height="4" rx="2" fill="#dbe4f1"/>
+          <rect x="162" y="64" width="24" height="4" rx="2" fill="#dbe4f1"/>
+          <circle cx="196" cy="86" r="15" fill="#1f9d55"/>
+          <path d="M189 86 l5 5 l9 -11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- 차트 -->
+          <rect x="238" y="70" width="9" height="26" rx="2" fill="#9ec3f2"/>
+          <rect x="252" y="56" width="9" height="40" rx="2" fill="#5a90e0"/>
+          <rect x="266" y="44" width="9" height="52" rx="2" fill="#2d6cdf"/>
+          <rect x="280" y="60" width="9" height="36" rx="2" fill="#f4a63e"/>
+        </svg>
       </div>
     </div>
 
@@ -26,12 +57,18 @@
       <div class="p-body flush"><table class="tbl"><tbody id="notiRows"></tbody></table></div>
     </section>
 
-    <!-- KPI (visibleProjects/Reviews 기반 집계) -->
+    <!-- 선택 프로젝트 단계 진행 -->
+    <section class="panel">
+      <div class="p-head"><h2>진행 중 프로젝트 · <span id="spName" style="font-weight:700">-</span></h2><span class="more" id="spCode"></span></div>
+      <div class="p-body"><div class="steps" id="stageSteps"></div></div>
+    </section>
+
+    <!-- KPI (선택 프로젝트 기준 집계) -->
     <div class="kpis">
-      <div class="kpi"><div class="k-label">진행 중 프로젝트</div><div class="k-value"><span id="kProj">0</span><small> 건</small></div></div>
       <div class="kpi run"><div class="k-label">검증 진행 중</div><div class="k-value" style="color:var(--blue)"><span id="kRun">0</span><small> 회차</small></div></div>
-      <div class="kpi err"><div class="k-label">미조치 개선(ERROR)</div><div class="k-value"><span id="kErr">0</span><small> 건</small></div></div>
-      <div class="kpi warn"><div class="k-label">승인 대기</div><div class="k-value"><span id="kWait">0</span><small> 건</small></div></div>
+      <div class="kpi err"><div class="k-label">미조치 개선</div><div class="k-value"><span id="kErr">0</span><small> 건</small></div></div>
+      <div class="kpi warn"><div class="k-label">미조치 권고</div><div class="k-value"><span id="kWarn">0</span><small> 건</small></div></div>
+      <div class="kpi"><div class="k-label">누적 검토회차</div><div class="k-value"><span id="kRounds">0</span><small> 회</small></div></div>
     </div>
 
     <div class="grid2">
@@ -89,19 +126,40 @@
     var M = window.MOCK, e = M.esc;
     var me = (M.currentUser() || {}).name || '';
 
-    // ── KPI 집계 (조회 가능 프로젝트 기준) ────────────────
+    // ── 선택 프로젝트 단계 진행 + KPI (콤보로 전환) ────────
     (function(){
       var projs = M.visibleProjects();
-      var revs = M.visibleReviews();
-      var defs = []; projs.forEach(function(p){ defs = defs.concat(M.defectsFor(p.code)); });
-      var kProj = projs.filter(function(p){ return p.status==='ACTIVE'; }).length;
-      var kRun = revs.filter(function(r){ return r.status==='RUNNING'; }).length;
-      var kErr = defs.filter(function(d){ return d.sev==='개선' && d.status!=='DONE'; }).length;
-      var kWait = projs.filter(function(p){ return p.status==='REQUESTED'; }).length;
-      document.getElementById('kProj').textContent = kProj;
-      document.getElementById('kRun').textContent = kRun;
-      document.getElementById('kErr').textContent = kErr;
-      document.getElementById('kWait').textContent = kWait;
+      var sel = document.getElementById('dashProjSel');
+      if(!projs.length){ sel.innerHTML='<option>담당 프로젝트 없음</option>'; return; }
+      sel.innerHTML = projs.map(function(p){ return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+
+      function curP(){ return projs.filter(function(p){ return String(p.id)===sel.value; })[0] || projs[0]; }
+      function stageState(code, st){
+        var rs = M.REVIEWS.filter(function(r){ return r.project===code && r.stage===st; });
+        if(!rs.length) return 'wait';
+        if(rs.some(function(r){ return r.status==='RUNNING'; })) return 'run';
+        return 'done';
+      }
+      function renderKpi(){
+        var p = curP();
+        var revs = M.REVIEWS.filter(function(r){ return r.project===p.code; });
+        var defs = M.defectsFor(p.code);
+        document.getElementById('spName').textContent = p.name;
+        document.getElementById('spCode').innerHTML = '<span class="pill">'+e(p.code)+'</span>';
+        document.getElementById('stageSteps').innerHTML = ['관리','분석','설계'].map(function(st){
+          var s = stageState(p.code, st);
+          var cls = s==='done' ? 'st done' : (s==='run' ? 'st cur' : 'st');
+          var lab = s==='done' ? '완료' : (s==='run' ? '진행중' : '예정');
+          var mark = s==='done' ? '✓' : (s==='run' ? '·' : '·');
+          return '<div class="'+cls+'"><span class="n">'+mark+'</span>'+st+'단계 <span class="muted" style="margin-left:5px">'+lab+'</span></div>';
+        }).join('');
+        document.getElementById('kRun').textContent = revs.filter(function(r){ return r.status==='RUNNING'; }).length;
+        document.getElementById('kErr').textContent = defs.filter(function(d){ return d.sev==='개선' && d.status!=='DONE'; }).length;
+        document.getElementById('kWarn').textContent = defs.filter(function(d){ return d.sev==='권고' && d.status!=='DONE'; }).length;
+        document.getElementById('kRounds').textContent = revs.filter(function(r){ return r.status==='COMPLETED'; }).length;
+      }
+      sel.addEventListener('change', renderKpi);
+      renderKpi();
     })();
 
     // ── 알림 렌더 (승인 결과 등) ──────────────────────────
