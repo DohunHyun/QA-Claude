@@ -154,8 +154,12 @@
       var pref=null, rid=params.get('reviewId'), pid=params.get('projectId');
       if(rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv) pref=rv.projectCode; }
       if(!pref && pid){ var pj=M.PROJECTS.filter(function(p){return String(p.id)===String(pid);})[0]; if(pj) pref=pj.code; }
-      // 지정된 우선순위가 없으면 검토 이력이 있는 프로젝트를 기본 선택 (빈 화면 방지)
-      if(!pref && ALL.length) pref=ALL[0].projectCode;
+      // 지정된 우선순위가 없으면 목록 상단(첫 프로젝트)부터 — 이력 있는 프로젝트 우선 (빈 화면 방지)
+      if(!pref){
+        var ps=projList();
+        var withData=ps.filter(function(p){ return ALL.some(function(r){ return r.projectCode===p.code; }); });
+        pref=(withData[0]||ps[0]||{}).code;
+      }
       if(!fillProjects(pref)){
         document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></div></section>';
         return;
