@@ -33,12 +33,12 @@
           <div class="drop" id="drop">
             <div class="big">파일을 이곳에 끌어다 놓거나 클릭하여 선택</div>
             <div class="sub">한 번에 여러 파일 동시 업로드 지원 · 최대 50MB/파일</div>
-            <input type="file" id="file" accept=".xlsx,.hwpx,.pptx" multiple style="display:none">
           </div>
+          <!-- input은 #drop 밖에 둬야 click() 재버블링(무한 재귀) 방지 -->
+          <input type="file" id="file" accept=".xlsx,.hwpx,.pptx" multiple style="display:none">
           <div class="inline" style="margin-top:12px">
             <div style="margin-left:auto"><button class="btn" type="submit" id="submitBtn" data-role="PM" data-role-mode="disable">검증 실행</button></div>
           </div>
-          <div id="fileName" class="muted" style="margin-top:8px"></div>
         </form>
       </div>
     </section>
@@ -95,8 +95,11 @@
       })
       .fail(function(){ initProjects(M.validatableProjects()); });
 
-    // 드랍존
+    // 드랍존 — 선택 파일을 드롭존 안에 표시
     var $file = $('#file');
+    var DROP_DEFAULT =
+      '<div class="big">파일을 이곳에 끌어다 놓거나 클릭하여 선택</div>'
+      + '<div class="sub">한 번에 여러 파일 동시 업로드 지원 · 최대 50MB/파일</div>';
     $('#drop').on('click', function(){ $file.click(); })
       .on('dragover', function(ev){ ev.preventDefault(); $(this).addClass('hot'); })
       .on('dragleave', function(){ $(this).removeClass('hot'); })
@@ -105,9 +108,14 @@
     $file.on('change', showFile);
     function showFile(){
       var fs = Array.prototype.slice.call($file[0].files);
-      if(!fs.length){ $('#fileName').empty(); return; }
-      var items = fs.map(function(f){ return '<li><b>'+e(f.name)+'</b> ('+Math.round(f.size/1024)+' KB)</li>'; }).join('');
-      $('#fileName').html('선택됨 <b>'+fs.length+'</b>개 파일:<ul style="margin:4px 0 0 18px">'+items+'</ul>');
+      if(!fs.length){ $('#drop').html(DROP_DEFAULT); return; }
+      var items = fs.map(function(f){
+        return '<div class="drop-file">📄 <b>'+e(f.name)+'</b> <span class="muted">('+Math.round(f.size/1024)+' KB)</span></div>';
+      }).join('');
+      $('#drop').html(
+        '<div class="big">선택된 파일 '+fs.length+'개</div>'
+        + '<div style="margin:8px 0 6px;text-align:left;display:inline-block">'+items+'</div>'
+        + '<div class="sub">다시 클릭하거나 끌어다 놓으면 재선택</div>');
     }
 
     // 검증 실행 — 1개면 /api/validate, 2개 이상이면 /api/validate-batch (파일별 자동 인식)
