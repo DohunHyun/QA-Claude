@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/projects")
 public class ProjectController {
@@ -33,6 +35,12 @@ public class ProjectController {
         p.setDesignEnd(req.designEnd());
         Project saved = projectRepository.save(p);
         return ResponseEntity.status(HttpStatus.CREATED).body(ProjectResponse.from(saved));
+    }
+
+    /** 프로젝트 목록 — 검증 업로드 등 프론트 드롭다운이 실제 DB 프로젝트 id를 쓰도록 제공. */
+    @GetMapping
+    public List<ProjectResponse> list() {
+        return projectRepository.findAll().stream().map(ProjectResponse::from).toList();
     }
 
     @GetMapping("/{id}")
