@@ -55,37 +55,45 @@
     var STAGE_KR = { MANAGEMENT:'관리', ANALYSIS:'분석', DESIGN:'설계' };
     var stageKr = STAGE_KR[stage] || null;
 
-    // 프로젝트 목록 — 승인(ACTIVE/APPROVED)된 프로젝트만 검증 가능
-    var projList = M.validatableProjects();
-    var noApproved = projList.length === 0;
-    $('#projSel').html(noApproved
-      ? '<option value="">검증 가능한(승인된) 프로젝트 없음</option>'
-      : projList.map(function(p){ return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join(''));
+    // 프로젝트 목록 초기화 — id는 반드시 백엔드 실제 프로젝트 id를 써야
+    // 업로드 시 doc.project 가 연결되어 검토 현황에 프로젝트가 표시된다(미지정 방지).
+    function initProjects(projList){
+      var noApproved = projList.length === 0;
+      $('#projSel').html(noApproved
+        ? '<option value="">검증 가능한(승인된) 프로젝트 없음</option>'
+        : projList.map(function(p){ return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join(''));
 
-    // 승인된 프로젝트가 없으면 업로드/검증 차단 + 안내
-    if (noApproved) {
-      $('#stageGuide').html(
-        '⛔ <b>승인된 프로젝트가 없습니다.</b> 산출물 검증은 <b>관리자 승인</b>이 완료된 프로젝트에서만 가능합니다. '
-        + '<a href="projects.html">프로젝트 목록</a>에서 상태를 확인하세요.'
-      ).show();
-      $('#submitBtn').prop('disabled', true);
-      $('#drop').css({opacity:.5, pointerEvents:'none'});
+      if (noApproved) {
+        $('#stageGuide').html(
+          '⛔ <b>승인된 프로젝트가 없습니다.</b> 산출물 검증은 <b>관리자 승인</b>이 완료된 프로젝트에서만 가능합니다. '
+          + '<a href="projects.html">프로젝트 목록</a>에서 상태를 확인하세요.'
+        ).show();
+        $('#submitBtn').prop('disabled', true);
+        $('#drop').css({opacity:.5, pointerEvents:'none'});
+      }
+
+      var pidParam = params.get('projectId');
+      if (pidParam && !noApproved) {
+        var hit = projList.filter(function(p){ return String(p.id) === String(pidParam); })[0];
+        if (hit) $('#projSel').val(String(hit.id));
+      }
+
+      if (stageKr && !noApproved) {
+        $('#projTag').html('<span class="pill">'+e(stageKr)+'단계</span>');
+        $('#stageGuide').html(
+          '<b>'+e(stageKr)+'산출물</b> 업로드 단계입니다. 업로드한 파일은 '+e(stageKr)+'단계 산출물로 자동 인식·검증됩니다.'
+        ).show();
+      }
     }
 
-    // URL ?projectId= 로 진입 시 해당 프로젝트 자동 선택 (승인된 프로젝트에 한함)
-    var pidParam = params.get('projectId');
-    if (pidParam && !noApproved) {
-      var hit = projList.filter(function(p){ return String(p.id) === String(pidParam); })[0];
-      if (hit) $('#projSel').val(String(hit.id));
-    }
-
-    // 단계 안내 배너 + 태그
-    if (stageKr && !noApproved) {
-      $('#projTag').html('<span class="pill">'+e(stageKr)+'단계</span>');
-      $('#stageGuide').html(
-        '<b>'+e(stageKr)+'산출물</b> 업로드 단계입니다. 업로드한 파일은 '+e(stageKr)+'단계 산출물로 자동 인식·검증됩니다.'
-      ).show();
-    }
+    // 실 API(/api/projects) 우선 → 실패 시 목업 폴백
+    $.getJSON('/api/projects')
+      .done(function(list){
+        var act = (list||[]).filter(function(p){ return p.status==='ACTIVE' || p.status==='APPROVED'; })
+                            .map(function(p){ return { id:p.id, code:p.code, name:p.name }; });
+        initProjects(act.length ? act : M.validatableProjects());
+      })
+      .fail(function(){ initProjects(M.validatableProjects()); });
 
     // 드랍존
     var $file = $('#file');
