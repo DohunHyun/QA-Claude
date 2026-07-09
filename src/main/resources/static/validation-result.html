@@ -10,10 +10,12 @@
   <main class="main">
     <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 검증 결과</div>
     <div class="page-head">
-      <div><h1>검증 결과</h1><p>단계별 검토 회차와 산출물별 최신 검토 결과·결함·생성 결과물을 조회합니다.</p></div>
+      <div><h1>검증 결과</h1><p>프로젝트·단계를 선택하면 단계별 검토 회차와 산출물별 최신 결과·결함·생성 결과물을 조회합니다.</p></div>
     </div>
 
+    <!-- 프로젝트 / 단계 선택 -->
     <div class="filterbar">
+      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
       <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
       <div class="spacer"></div>
       <span class="muted" id="scopeTag"></span>
@@ -30,36 +32,48 @@
     var u = M.currentUser() || {};
     var params = new URLSearchParams(location.search);
     var ALL = [];          // 정규화된 검토 목록
-    var USE_API = true;    // 실 API 사용 여부(폴백 시 false)
+    var USE_API = true;
+
+    var PNAME = {}; M.PROJECTS.forEach(function(p){ PNAME[p.code]=p.name; });
 
     function fmtDate(iso){ return iso ? String(iso).replace('T',' ').replace('Z','').slice(0,16) : '-'; }
     function stageOf(type){ var a=M.ARTIFACTS.filter(function(x){return x.type===type;})[0]; return a?a.stage:'-'; }
     function normApi(r){
-      return { reviewId:r.reviewId, artifactType:r.artifactType, artifactLabel:r.artifactLabel||'미분류', fileName:r.fileName,
-        round:r.round, status:r.status, passed:r.passed, defectCount:r.defectCount, createdAt:r.createdAt, stage:stageOf(r.artifactType) };
+      return { reviewId:r.reviewId, artifactLabel:r.artifactLabel||'미분류', fileName:r.fileName,
+        projectCode:r.projectCode||'미지정', projectName:r.projectName||'미지정 프로젝트',
+        stage:r.stage||stageOf(r.artifactType), round:r.round, status:r.status, passed:r.passed,
+        defectCount:r.defectCount, createdAt:r.createdAt };
     }
     function normMock(r){
-      return { reviewId:r.id, project:r.project, artifactType:r.code, artifactLabel:r.artifact, fileName:'', round:r.round, status:r.status,
-        passed:r.passed, defectCount:(r.error||0)+(r.warn||0), error:r.error, warn:r.warn, createdAt:r.date, stage:r.stage };
+      return { reviewId:r.id, projectCode:r.project, projectName:PNAME[r.project]||r.project,
+        artifactLabel:r.artifact, fileName:'', stage:r.stage, round:r.round, status:r.status,
+        passed:r.passed, defectCount:(r.error||0)+(r.warn||0), createdAt:r.date };
     }
     function verdict(r){
       if(r.status==='RUNNING'||r.status==='PENDING') return '<span class="state run">검증중</span>';
       return r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>';
     }
-    // 산출물별 최신 회차 (단계 필터 반영)
-    function latestByArtifact(stageF){
-      var revs = ALL.filter(function(r){ return !stageF || r.stage===stageF; });
+    function projList(){
+      var seen={}, out=[];
+      ALL.forEach(function(r){ if(!seen[r.projectCode]){ seen[r.projectCode]=1; out.push({code:r.projectCode, name:r.projectName}); } });
+      return out;
+    }
+    function curCode(){ return document.getElementById('projSel').value; }
+    function latestByArtifact(code, stageF){
+      var revs=ALL.filter(function(r){ return r.projectCode===code && (!stageF || r.stage===stageF); });
       var byArt={};
       revs.forEach(function(r){ if(!byArt[r.artifactLabel] || r.round>byArt[r.artifactLabel].round) byArt[r.artifactLabel]=r; });
       return Object.keys(byArt).map(function(k){ return byArt[k]; }).sort(function(a,b){ return b.reviewId-a.reviewId; });
     }
 
     function render(){
-      var stageF = document.getElementById('stageSel').value;
+      var code=curCode();
+      var stageF=document.getElementById('stageSel').value;
+      var pRevs=ALL.filter(function(r){ return r.projectCode===code; });
 
       // ── 단계별 검토 회차 요약 ──
       var summary=['관리','분석','설계'].map(function(st){
-        var rs=ALL.filter(function(r){ return r.stage===st; });
+        var rs=pRevs.filter(function(r){ return r.stage===st; });
         var rounds=rs.reduce(function(m,r){ return Math.max(m, r.round); }, 0);
         return '<div class="kpi"><div class="k-label">'+st+'단계 검토</div>'
           +'<div class="k-value" style="font-size:20px">'+rs.length+'<small> 회차</small></div>'
@@ -68,40 +82,36 @@
       var html='<div class="kpis" style="grid-template-columns:repeat(3,1fr)">'+summary+'</div>';
 
       // ── 산출물별 최신 검토 결과 (최대 4건) ──
-      var arts=latestByArtifact(stageF).slice(0,4);
+      var arts=latestByArtifact(code, stageF).slice(0,4);
       html+='<section class="panel"><div class="p-head"><h2>산출물별 최신 검토 결과 '
         +'<span class="muted" style="font-weight:400">(최대 4건)</span></h2>'
-        +'<span class="more">'+(stageF?e(stageF)+'단계':'전체')+'</span></div>'
+        +'<span class="more">'+e(code)+(stageF?' · '+e(stageF)+'단계':'')+'</span></div>'
         +'<div class="p-body flush"><div class="tbl-scroll"><table class="tbl">'
         +'<thead><tr><th>산출물</th><th class="num">단계</th><th class="num">최신회차</th><th class="num">결함</th><th class="num">판정</th><th class="num">상세</th><th class="num">예외처리</th></tr></thead><tbody>';
       html += arts.length ? arts.map(function(r){
-        var canExc = r.status==='COMPLETED' && (r.defectCount||0)>0 && !r.passed;
-        var excBtn = '<button class="btn sm sec exc-btn" data-role="PM" data-role-mode="disable" '
-          + 'data-art="'+e(r.artifactLabel)+'"'+(canExc?'':' disabled')+'>예외처리 요청</button>';
+        var canExc=r.status==='COMPLETED' && (r.defectCount||0)>0 && !r.passed;
+        var excBtn='<button class="btn sm sec exc-btn" data-role="PM" data-role-mode="disable" '
+          +'data-art="'+e(r.artifactLabel)+'" data-pcode="'+e(code)+'"'+(canExc?'':' disabled')+'>예외처리 요청</button>';
         return '<tr><td><b>'+e(r.artifactLabel)+'</b></td>'
           +'<td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
-          +'<td class="num">'+r.round+'회차</td>'
-          +'<td class="num">'+(r.defectCount||0)+'건</td>'
+          +'<td class="num">'+r.round+'회차</td><td class="num">'+(r.defectCount||0)+'건</td>'
           +'<td class="num">'+verdict(r)+'</td>'
           +'<td class="num"><button class="btn sm sec det-btn" data-id="'+r.reviewId+'">결함 보기</button></td>'
           +'<td class="num">'+excBtn+'</td></tr>';
       }).join('') : '<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">검토 결과가 없습니다.</td></tr>';
-      html+='</tbody></table></div></div></section>';
+      html+='</tbody></table></div></div></section><div id="defectBox"></div>';
 
-      html+='<div id="defectBox"></div>';
       document.getElementById('detail').innerHTML=html;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
 
-      // 최초/선택 산출물 결함 자동 표시
-      var initId = params.get('reviewId');
-      var target = (initId && arts.some(function(r){return String(r.reviewId)===String(initId);})) ? initId : (arts[0] && arts[0].reviewId);
+      var initId=params.get('reviewId');
+      var target=(initId && arts.some(function(r){return String(r.reviewId)===String(initId);})) ? initId : (arts[0] && arts[0].reviewId);
       if(target) showDefects(target);
     }
 
-    // 결함 상세 + 생성 결과물 (실 API 우선, 목업 폴백)
     function loadDefects(rev){
       if(!USE_API){
-        return Promise.resolve(M.DEFECTS.filter(function(d){ return d.artifact===rev.artifactLabel && (!rev.project || d.project===rev.project); }).map(function(d){
+        return Promise.resolve(M.DEFECTS.filter(function(d){ return d.artifact===rev.artifactLabel && (!rev.projectCode || d.project===rev.projectCode); }).map(function(d){
           return { severity:d.sev, defectType:d.dtype, perspective:d.persp, location:d.loc, description:d.desc, improvementGuide:d.plan };
         }));
       }
@@ -129,7 +139,6 @@
             +'</tbody></table></div></div>';
         }
         html+='</section>';
-        // 생성 결과물 (실 API면 실제 다운로드 링크)
         var dl = USE_API
           ? { imp:'/api/reviews/'+rev.reviewId+'/improved-artifact', led:'/api/reviews/'+rev.reviewId+'/corrective-action-ledger', rep:'/api/reviews/'+rev.reviewId+'/review-report' }
           : { imp:'review-report.html#improved', led:'corrective-actions.html', rep:'review-report.html' };
@@ -142,35 +151,47 @@
       });
     }
 
-    // 이벤트 위임 — 결함 보기 / 예외처리 요청
     document.getElementById('detail').addEventListener('click', function(ev){
       var det=ev.target.closest('.det-btn');
       if(det){ showDefects(det.getAttribute('data-id')); document.getElementById('defectBox').scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
       var exc=ev.target.closest('.exc-btn');
       if(exc && !exc.disabled){
-        var art=exc.getAttribute('data-art');
-        if(!confirm(art+' 의 개선 항목에 대해 예외처리(QA 예외 승인)를 요청하시겠습니까?')) return;
+        var art=exc.getAttribute('data-art'), pcode=exc.getAttribute('data-pcode');
+        if(!confirm('['+pcode+'] '+art+' 의 개선 항목에 대해 예외처리(QA 예외 승인)를 요청하시겠습니까?')) return;
         M.addNotification({ to:(u.name||'QA'), type:'report', title:'QA 예외처리 요청 접수',
-          message:art+' 예외처리(QA 예외 승인) 요청이 접수되었습니다.', by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
+          message:'['+pcode+'] '+art+' 예외처리(QA 예외 승인) 요청이 접수되었습니다.',
+          projectCode:pcode, by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
         if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
         alert(art+' 예외처리를 요청했습니다. 이후 진행은 알림으로 안내됩니다.');
       }
     });
-
+    document.getElementById('projSel').addEventListener('change', render);
     document.getElementById('stageSel').addEventListener('change', render);
 
-    // 실 API 우선 → 실패 시 목업 폴백
+    function fillProjects(preferCode){
+      var ps=projList(), sel=document.getElementById('projSel');
+      if(!ps.length){ sel.innerHTML='<option value="">검토 이력 없음</option>'; return false; }
+      sel.innerHTML=ps.map(function(p){ return '<option value="'+e(p.code)+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+      if(preferCode && ps.some(function(p){return p.code===preferCode;})) sel.value=preferCode;
+      return true;
+    }
+
     function load(){
-      document.getElementById('scopeTag').innerHTML='<span class="pill g">전체</span>';
+      document.getElementById('scopeTag').innerHTML='<span class="pill g">'+((u.role==='PM')?'내 프로젝트':'전체')+'</span>';
       fetch('/api/reviews')
         .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
         .then(function(list){ USE_API=true; ALL=list.map(normApi); afterLoad(); })
         .catch(function(){ USE_API=false; ALL=M.REVIEWS.map(normMock); afterLoad(); });
     }
     function afterLoad(){
-      // ?reviewId 진입 시 해당 단계로 필터 프리셋
-      var rid=params.get('reviewId');
-      if(rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv) document.getElementById('stageSel').value=rv.stage; }
+      var pref=null, stagePre='', rid=params.get('reviewId'), pid=params.get('projectId');
+      if(rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv){ pref=rv.projectCode; stagePre=rv.stage; } }
+      if(!pref && pid){ var pj=M.PROJECTS.filter(function(p){return String(p.id)===String(pid);})[0]; if(pj) pref=pj.code; }
+      if(!fillProjects(pref)){
+        document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></div></section>';
+        return;
+      }
+      if(stagePre) document.getElementById('stageSel').value=stagePre;
       render();
     }
     load();
