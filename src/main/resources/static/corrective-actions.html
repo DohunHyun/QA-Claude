@@ -12,11 +12,8 @@
     <div class="page-head">
       <div><h1>시정조치관리대장 <span class="pill">PM-342-03</span></h1>
       <p>검증마다 자동 생성 (Excel 3시트: 표지 · 개정이력 · 시정조치서). 프로젝트별로 조회합니다.</p></div>
-      <div class="btn-row"><button class="btn sec" data-role="PM,QA" data-role-mode="disable">＋ 개정이력</button><button class="btn">Excel 다운로드</button></div>
+      <div class="btn-row"><button class="btn sec" data-role="PM,QA" data-role-mode="disable">＋ 개정이력</button><button class="btn" id="excelBtn">Excel 다운로드</button></div>
     </div>
-
-    <!-- 실제 검토 결과 기반 다운로드 (백엔드 연동 · 미연동 시 아래 목업만 표시) -->
-    <div id="realBar"></div>
 
     <!-- 프로젝트 / 필터 -->
     <div class="filterbar">
@@ -41,6 +38,7 @@
     var u=M.currentUser()||{};
     var list=M.visibleProjects();
     var params=new URLSearchParams(location.search);
+    var curRows=[];   // 현재 화면에 표시 중인 시정조치 행 (Excel 내보내기용)
 
     document.getElementById('scopeTag').innerHTML = (u.role==='PM')
       ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
@@ -65,7 +63,7 @@
     // 회차 드롭다운 — 선택 프로젝트 결함의 회차(distinct)로 채움
     function fillRounds(){
       var p=curProject(); if(!p) return;
-      var rounds=[]; M.defectsFor(p.code).forEach(function(d){ if(rounds.indexOf(d.round)===-1) rounds.push(d.round); });
+      var rounds=[]; M.LEDGER.forEach(function(d){ if(rounds.indexOf(d.round)===-1) rounds.push(d.round); });
       rounds.sort(function(a,b){return a-b;});
       document.getElementById('roundSel').innerHTML='<option value="">전체</option>'
         + rounds.map(function(r){ return '<option value="'+r+'">'+r+'회차</option>'; }).join('');
@@ -78,7 +76,7 @@
 
     function render(){
       var p=curProject(); if(!p) return;
-      var all=M.defectsFor(p.code);
+      var all=M.LEDGER;   // 시정조치관리대장(설계단계) 실 샘플 기준
       // 필터 적용 — 단계 · 회차 · 검색
       var stageF=document.getElementById('stageSel').value;
       var roundF=document.getElementById('roundSel').value;
@@ -89,6 +87,7 @@
         if(q && (e(d.artifact)+e(d.desc)+e(d.no)).indexOf(q)===-1) return false;
         return true;
       });
+      curRows=D;
 
       var target=all.length, done=all.filter(function(d){return d.status==='DONE';}).length;
       var baseDate=all.reduce(function(m,d){return d.date>m?d.date:m;}, '');
@@ -131,33 +130,33 @@
       document.getElementById('detail').innerHTML=html;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
     }
-  </script>
-  <script>
-    // 실 API 연동: 검토 목록을 불러와 선택 → 실제 시정조치관리대장(Excel) 다운로드.
-    // 백엔드 미연동/무이력 시 이 바는 숨고 아래 목업이 그대로 표시된다.
-    (function(){
-      var box=document.getElementById('realBar');
-      var pre=new URLSearchParams(location.search).get('reviewId');
-      fetch('/api/reviews')
-        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
-        .then(function(list){
-          if(!list.length) return;   // 이력 없으면 목업만
-          box.innerHTML='<section class="panel" style="border:1.5px solid #284b8a55">'
-            +'<div class="p-head"><h2>실제 시정조치관리대장 다운로드</h2><span class="more">Claude 검증 결과 기반 · Excel(.xlsx)</span></div>'
-            +'<div class="p-body inline" style="gap:12px">'
-            +'<label class="soft" style="font-weight:700">검토 회차</label>'
-            +'<select id="realRev" style="max-width:480px">'
-            + list.map(function(x){ return '<option value="'+x.reviewId+'">#'+x.reviewId+' · '+M.esc(x.artifactLabel||'미분류')+' · 결함 '+x.defectCount+'건 · '+(x.passed?'통과':'미통과')+'</option>'; }).join('')
-            +'</select>'
-            +'<a class="btn" id="realDl" style="margin-left:auto">＋ Excel 다운로드</a>'
-            +'</div></section>';
-          var sel=document.getElementById('realRev');
-          if(pre && list.some(function(x){return String(x.reviewId)===String(pre);})) sel.value=pre;
-          function sync(){ document.getElementById('realDl').href='/api/reviews/'+sel.value+'/corrective-action-ledger'; }
-          sel.addEventListener('change', sync); sync();
-        })
-        .catch(function(){ /* 백엔드 미연동 — 목업만 표시 */ });
-    })();
+
+    // 화면에 표시된 시정조치서 테이블을 Excel(.xls)로 내보낸다 (부적합사항 11 + 계획 4 + 확인 2 = 17열).
+    function exportExcel(){
+      var p=curProject();
+      var cols=['No','업무명','구분','검토일','검토자','산출물명','파일명','부적합 위치','개선유형','결함유형','결함내용',
+                '조치담당자','완료예정일','조치완료일','비고(시정조치계획)','조치확인자','조치확인일'];
+      var head1='<tr><th colspan="11" style="background:#e9eefc">부적합사항</th>'
+        +'<th colspan="4" style="background:#fdf1e4">시정조치 계획</th>'
+        +'<th colspan="2" style="background:#eaf6ee">시정조치 확인</th></tr>';
+      var head2='<tr>'+cols.map(function(h){ return '<th>'+e(h)+'</th>'; }).join('')+'</tr>';
+      var body=(curRows||[]).map(function(d){
+        var cells=[d.no,d.biz,d.gubun,d.date,d.reviewer,d.artifact,d.file,d.loc,d.sev,d.dtype,d.desc,
+                   d.owner,d.due,d.doneDate,d.plan,d.checker,d.checkDate];
+        return '<tr>'+cells.map(function(v){ return '<td>'+e(v==null?'':v)+'</td>'; }).join('')+'</tr>';
+      }).join('');
+      var title='시정조치관리대장 · '+(p?p.code:'')+' (설계단계)';
+      var html='<html><head><meta charset="UTF-8"></head><body>'
+        +'<table border="1"><caption>'+e(title)+'</caption>'+head1+head2+body+'</table></body></html>';
+      var blob=new Blob(['﻿'+html], {type:'application/vnd.ms-excel;charset=utf-8'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='시정조치관리대장_'+(p?p.code:'설계단계')+'.xls';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 0);
+    }
+    var _xb=document.getElementById('excelBtn');
+    if(_xb) _xb.addEventListener('click', exportExcel);
   </script>
 </body>
 </html>
