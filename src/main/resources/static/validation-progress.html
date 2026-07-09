@@ -11,7 +11,10 @@
     <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 검토 현황</div>
     <div class="page-head">
       <div><h1>검토 현황</h1><p>진행 중·최근 완료된 검증 회차의 4-Phase 진행 상태를 프로젝트별로 모니터링합니다.</p></div>
-      <a class="btn sec" href="validation-upload.html">＋ 새 검증</a>
+      <div class="btn-row">
+        <button class="btn" id="reqReportBtn" data-role="PM,QA" data-role-mode="disable" disabled>검토결과서 요청</button>
+        <a class="btn sec" href="validation-upload.html">＋ 새 검증</a>
+      </div>
     </div>
 
     <!-- 프로젝트 선택 -->
@@ -85,24 +88,49 @@
         html += '<div class="note" style="margin-bottom:14px">현재 <b>'+e(p.name)+'</b>에 진행 중인 검증이 없습니다.</div>';
       }
 
-      // 큐 / 이력
+      // 큐 / 이력 — 단계 컬럼 포함
       html += '<section class="panel"><div class="p-head"><h2>검증 큐 / 최근 이력 · '+e(p.code)+'</h2>'
         +'<span class="more">'+revs.length+'건</span></div><div class="p-body flush"><table class="tbl">'
-        +'<thead><tr><th class="num">검토ID</th><th>산출물</th><th class="num">회차</th><th style="width:220px">진행</th><th class="num">상태</th><th class="num">검증일</th></tr></thead><tbody>';
+        +'<thead><tr><th class="num">검토ID</th><th class="num">단계</th><th>산출물</th><th class="num">회차</th><th style="width:200px">진행</th><th class="num">상태</th><th class="num">검증일</th></tr></thead><tbody>';
       html += revs.length
         ? revs.map(function(r){
             var pct=r.status==='RUNNING'?62:(r.status==='COMPLETED'?100:0);
             return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.id+'\'" style="cursor:pointer">'
-              +'<td class="num">#'+r.id+'</td><td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
+              +'<td class="num">#'+r.id+'</td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
+              +'<td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
               +'<td class="num">'+r.round+'회차</td>'
               +'<td><div class="progress"><span style="width:'+pct+'%"></span></div></td>'
               +'<td class="num">'+M.stateHtml(r.status)+'</td>'
               +'<td class="num muted">'+e(r.date)+'</td></tr>';
           }).join('')
-        : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다.</td></tr>';
+        : '<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다.</td></tr>';
       html += '</tbody></table></div></section>';
 
       document.getElementById('detail').innerHTML=html;
+
+      // 검토결과서 요청 버튼 — 관리·분석·설계 3단계 모두 완료(RUNNING 없음·이력 존재) 시 활성화
+      updateReportBtn(p);
+    }
+
+    // 단계 완료 = 해당 단계 검증이력 존재 + RUNNING 없음
+    function stageDone(code, st){
+      var rs = M.REVIEWS.filter(function(r){ return r.project===code && r.stage===st; });
+      return rs.length>0 && !rs.some(function(r){ return r.status==='RUNNING'; });
+    }
+    function updateReportBtn(p){
+      var btn=document.getElementById('reqReportBtn');
+      var allDone = ['관리','분석','설계'].every(function(st){ return stageDone(p.code, st); });
+      btn.disabled = !allDone;
+      btn.title = allDone ? '' : '관리·분석·설계 단계가 모두 완료되어야 요청할 수 있습니다.';
+      btn.onclick = allDone ? function(){
+        if(!confirm('['+p.code+'] 검토결과서를 요청하시겠습니까?\nQA 승인 후 발급됩니다.')) return;
+        M.addNotification({ to:(u.name||'QA'), type:'report', title:'검토결과서 요청 접수',
+          message:'['+p.code+'] '+p.name+' 검토결과서 발급 요청이 접수되었습니다.',
+          projectId:p.id, projectCode:p.code, by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
+        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+        alert('검토결과서를 요청했습니다. 이후 진행은 알림으로 안내됩니다.');
+      } : null;
+      if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.querySelector('.page-head'));
     }
   </script>
 </body>

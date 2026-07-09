@@ -39,7 +39,7 @@
       ]
     },
     {
-      key: 'validate', label: 'AI 검증', href: 'validation-upload.html', roles: ['PM','QA'],
+      key: 'validate', label: 'AI 검증', href: 'validation-progress.html', roles: ['PM','QA'],
       side: [
         { g: '검증', items: [
           { p: 'validation-progress', label: '검토 현황', href: 'validation-progress.html' },

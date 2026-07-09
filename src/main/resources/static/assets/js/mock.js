@@ -407,6 +407,7 @@ window.MOCK = (function () {
     pendingProjects: pendingProjects, setProjectStatus: setProjectStatus, validatableProjects: validatableProjects,
     defectsFor: defectsFor,
     issuedReport: issuedReport, issueReport: issueReport,
+    addNotification: addNotification,
     notificationsFor: notificationsFor, unreadCountFor: unreadCountFor, markAllReadFor: markAllReadFor,
     removeNotification: removeNotification,
     esc: function (s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
