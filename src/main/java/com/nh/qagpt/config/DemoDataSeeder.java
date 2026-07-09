@@ -101,9 +101,11 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (projectRepo.count() > 0) return;   // 이미 정식 시드됨 → 재시드 안 함
+        // 데모 프로젝트(NHOB)가 이미 있으면 시드 완료 상태 → 재시드 안 함.
+        // (사용자 테스트로 생성된 다른 프로젝트가 있어도 데모 데이터는 채운다.)
+        if (projectRepo.findByCode("NHOB").isPresent()) return;
 
-        // 프로젝트가 없는데 남아있는 레거시 orphan 검토/문서/시정조치 정리 (데모 정합성)
+        // 데모 프로젝트에 연결되지 않은 레거시 orphan 검토/문서/시정조치 정리 (데모 정합성)
         correctiveActionRepo.deleteAllInBatch();
         reviewRepo.deleteAll();     // cascade(orphanRemoval) → 결함 제거
         documentRepo.deleteAll();
