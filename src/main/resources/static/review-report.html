@@ -119,17 +119,45 @@
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
     }
 
-    // 검토결과서 발급 (페이지 헤더 버튼) — 선택된 프로젝트·단계 기준 발급
-    document.getElementById('issueBtn').addEventListener('click', function(){
-      var p = curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
-      var stage = document.getElementById('stageSel').value;
-      if(M.issuedReport(p.id, stage)){ alert('['+p.code+'] '+stage+' 단계 검토결과서는 이미 발급되었습니다.'); return; }
-      var name = (u.name || 'QA');
-      if(!confirm('['+p.code+'] '+stage+' 단계 검토결과서를 발급하시겠습니까?\n검증자: '+name)) return;
+    // 검토결과서 발급 (페이지 헤더 버튼) — 선택 프로젝트·단계의 실 검토를 QA 승인 후 HWPX 다운로드.
+    // 백엔드 미연동/무이력 시 mock 발급 기록으로 폴백.
+    function mockIssue(p, stage, name, extra){
       M.issueReport(p, stage, name);
       render();
       if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-      alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.');
+      alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.' + (extra || ''));
+    }
+    document.getElementById('issueBtn').addEventListener('click', function(){
+      var p = curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
+      var stage = document.getElementById('stageSel').value;
+      var name = (u.name || 'QA');
+      if(!confirm('['+p.code+'] '+stage+' 단계 검토결과서를 발급하시겠습니까?\n검증자: '+name)) return;
+      var sts = groupStages(stage);
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+        .then(function(list){
+          var cand = list.filter(function(x){ return x.projectCode===p.code
+              && sts.indexOf(x.stage)!==-1 && x.status==='COMPLETED'; })
+            .sort(function(a,b){ return b.reviewId-a.reviewId; });
+          if(!cand.length) throw new Error('no-review');
+          var rid = cand[0].reviewId;
+          // QA 승인(개선 잔존 시 예외 승인) 후 HWPX 다운로드
+          return fetch('/api/reviews/'+rid+'/approve?exception=true', { method:'POST' })
+            .then(function(res){ if(!res.ok) throw new Error('approve-failed'); })
+            .then(function(){
+              var a=document.createElement('a');
+              a.href='/api/reviews/'+rid+'/review-report';
+              a.download='';   // 서버 파일명(Content-Disposition) 사용
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              M.issueReport(p, stage, name);
+              render();
+              if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+            });
+        })
+        .catch(function(err){
+          mockIssue(p, stage, name, (err && err.message==='no-review')
+            ? '\n(다운로드할 실제 검토 회차가 없어 발급 기록만 저장했습니다.)' : '');
+        });
     });
   </script>
 </body>
