@@ -2,7 +2,9 @@ package com.nh.qagpt.controller;
 
 import com.nh.qagpt.domain.Document;
 import com.nh.qagpt.domain.ReviewResult;
+import com.nh.qagpt.dto.DefectDto;
 import com.nh.qagpt.dto.ReviewResponse;
+import com.nh.qagpt.dto.ReviewSummaryDto;
 import com.nh.qagpt.exception.QaApprovalException;
 import com.nh.qagpt.exception.ResourceNotFoundException;
 import com.nh.qagpt.repository.DefectRepository;
@@ -56,11 +58,30 @@ public class ReviewController {
                 "documentId", documentId));
     }
 
+    /** 검토 현황 목록 — 전체 검토 회차를 최신순으로 반환 (프론트 '검토 현황' 화면). */
+    @GetMapping
+    @Transactional(readOnly = true)
+    public List<ReviewSummaryDto> list() {
+        return reviewResultRepository.findAll().stream()
+                .sorted((a, b) -> Long.compare(b.getId(), a.getId()))
+                .map(r -> ReviewSummaryDto.from(r, defectRepository.countByReviewResultId(r.getId())))
+                .toList();
+    }
+
     @GetMapping("/{id}")
     public ReviewResponse get(@PathVariable Long id) {
         return reviewResultRepository.findById(id)
                 .map(r -> ReviewResponse.from(r, defectRepository.countByReviewResultId(r.getId())))
                 .orElseThrow(() -> new ResourceNotFoundException("검토 결과 없음: " + id));
+    }
+
+    /** 검토 회차의 결함 목록 — '검증 결과' 화면의 결함 상세 표에 사용. */
+    @GetMapping("/{id}/defects")
+    @Transactional(readOnly = true)
+    public List<DefectDto> defects(@PathVariable Long id) {
+        return defectRepository.findByReviewResultId(id).stream()
+                .map(DefectDto::from)
+                .toList();
     }
 
     /** 비동기 검증 진행도 폴링 — 산출물 기준 검토 목록(RUNNING→COMPLETED/FAILED). */

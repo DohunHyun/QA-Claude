@@ -10,128 +10,83 @@
   <main class="main">
     <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> AI 검증 <span class="sep">›</span> 검토 현황</div>
     <div class="page-head">
-      <div><h1>검토 현황</h1><p>진행 중·최근 완료된 검증 회차의 4-Phase 진행 상태를 프로젝트별로 모니터링합니다.</p></div>
-      <div class="btn-row">
-        <button class="btn" id="reqReportBtn" data-role="PM,QA" data-role-mode="disable" disabled>검토결과서 요청</button>
-        <a class="btn sec" href="validation-upload.html">＋ 새 검증</a>
-      </div>
+      <div><h1>검토 현황</h1><p>업로드된 산출물의 검증 회차 상태(진행 중·완료·통과 여부)를 실시간으로 확인합니다.</p></div>
+      <a class="btn sec" href="validation-upload.html">＋ 새 검증</a>
     </div>
 
-    <!-- 프로젝트 선택 -->
     <div class="filterbar">
-      <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:360px"></select></div>
-      <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
       <div class="spacer"></div>
+      <button class="btn sm sec" id="refreshBtn">↻ 새로고침</button>
       <span class="muted" id="scopeTag"></span>
     </div>
 
-    <div id="detail"></div>
+    <div id="detail"><section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">불러오는 중…</div></section></div>
   </main>
 
   <script src="assets/js/mock.js"></script>
   <script src="assets/js/session.js"></script>
   <script src="assets/js/layout.js"></script>
   <script>
-    var M=window.MOCK, e=M.esc;
-    var u=M.currentUser()||{};
-    var list=M.visibleProjects();
-    var params=new URLSearchParams(location.search);
+    var M = window.MOCK, e = M.esc;
 
-    document.getElementById('scopeTag').innerHTML = (u.role==='PM')
-      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
-
-    if(!list.length){
-      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
-      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
-    } else {
-      document.getElementById('projSel').innerHTML=list.map(function(p){
-        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
-      var pid=params.get('projectId');
-      var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
-      document.getElementById('projSel').value=String(sel.id);
-      render();
-      document.getElementById('projSel').addEventListener('change', function(){
-        var p=list.filter(function(x){return String(x.id)===this.value;}.bind(this))[0];
-        history.replaceState(null,'','validation-progress.html?projectId='+p.id); render();
-      });
-      document.getElementById('stageSel').addEventListener('change', render);
+    function fmtDate(iso){
+      if(!iso) return '-';
+      // "2026-07-08T07:11:06.665Z" → "2026-07-08 07:11"
+      return iso.replace('T', ' ').replace('Z', '').slice(0, 16);
+    }
+    function verdict(r){
+      if(r.status === 'COMPLETED') return r.passed
+        ? '<span class="state done">통과</span>'
+        : '<span class="state fail">미통과</span>';
+      return '<span class="muted">-</span>';
     }
 
-    function curProject(){
-      var id=document.getElementById('projSel').value;
-      return list.filter(function(p){return String(p.id)===id;})[0];
-    }
+    function render(reviews){
+      var running = reviews.filter(function(r){ return r.status === 'RUNNING' || r.status === 'PENDING'; });
+      var html = '';
 
-    function render(){
-      var p=curProject(); if(!p) return;
-      var stageF=document.getElementById('stageSel').value;
-      var revs=M.REVIEWS.filter(function(r){ return r.project===p.code && (!stageF || r.stage===stageF); })
-                        .slice().sort(function(a,b){return b.id-a.id;});
-      var running=revs.filter(function(r){return r.status==='RUNNING';});
-
-      var html='';
-      // 진행 중 패널
       if(running.length){
-        html += running.map(function(r){
-          return '<section class="panel"><div class="p-head"><h2>진행 중 검증 · '+e(r.artifact)+' ('+e(r.code)+') #'+r.id+'</h2>'
-            +'<span class="more">'+r.round+'회차 · '+e(p.code)+'</span></div><div class="p-body">'
-            +'<div class="steps">'
-            +'<div class="st done"><span class="n">✓</span>Phase1 표준 보증</div>'
-            +'<div class="st done"><span class="n">✓</span>Phase2 요구사항 품질</div>'
-            +'<div class="st cur"><span class="n">3</span>Phase3 정합성 체크</div>'
-            +'<div class="st"><span class="n">4</span>Phase4 결과물 생성</div></div>'
-            +'<div class="progress" style="margin-top:12px"><span style="width:62%"></span></div>'
-            +'<div class="muted" style="margin-top:8px">파일명·표지·개정이력 검증 완료 → 요구사항추적표 대조 완료 → 정합성 검사 중…</div>'
-            +'</div></section>';
-        }).join('');
-      } else {
-        html += '<div class="note" style="margin-bottom:14px">현재 <b>'+e(p.name)+'</b>에 진행 중인 검증이 없습니다.</div>';
+        html += '<div class="note" style="margin-bottom:14px">🔄 진행 중인 검증 <b>' + running.length + '</b>건이 있습니다. 완료되면 아래 목록에서 결과를 확인하세요.</div>';
       }
 
-      // 큐 / 이력 — 단계 컬럼 포함
-      html += '<section class="panel"><div class="p-head"><h2>검증 큐 / 최근 이력 · '+e(p.code)+'</h2>'
-        +'<span class="more">'+revs.length+'건</span></div><div class="p-body flush"><table class="tbl">'
-        +'<thead><tr><th class="num">검토ID</th><th class="num">단계</th><th>산출물</th><th class="num">회차</th><th style="width:200px">진행</th><th class="num">상태</th><th class="num">검증일</th></tr></thead><tbody>';
-      html += revs.length
-        ? revs.map(function(r){
-            var pct=r.status==='RUNNING'?62:(r.status==='COMPLETED'?100:0);
-            return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.id+'\'" style="cursor:pointer">'
-              +'<td class="num">#'+r.id+'</td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
-              +'<td><b>'+e(r.artifact)+'</b> <span class="muted">'+e(r.code)+'</span></td>'
-              +'<td class="num">'+r.round+'회차</td>'
-              +'<td><div class="progress"><span style="width:'+pct+'%"></span></div></td>'
-              +'<td class="num">'+M.stateHtml(r.status)+'</td>'
-              +'<td class="num muted">'+e(r.date)+'</td></tr>';
+      html += '<section class="panel"><div class="p-head"><h2>검증 회차 목록</h2>'
+        + '<span class="more">' + reviews.length + '건</span></div>'
+        + '<div class="p-body flush"><table class="tbl">'
+        + '<thead><tr><th class="num">검토ID</th><th>산출물</th><th>파일명</th>'
+        + '<th class="num">회차</th><th class="num">상태</th><th class="num">판정</th>'
+        + '<th class="num">결함</th><th class="num">검증일</th></tr></thead><tbody>';
+
+      html += reviews.length
+        ? reviews.map(function(r){
+            return '<tr onclick="location.href=\'validation-result.html?reviewId=' + r.reviewId + '\'" style="cursor:pointer">'
+              + '<td class="num">#' + r.reviewId + '</td>'
+              + '<td><b>' + e(r.artifactLabel || '미분류') + '</b></td>'
+              + '<td class="muted">' + e(r.fileName || '-') + '</td>'
+              + '<td class="num">' + r.round + '회차</td>'
+              + '<td class="num">' + M.stateHtml(r.status) + '</td>'
+              + '<td class="num">' + verdict(r) + '</td>'
+              + '<td class="num">' + r.defectCount + '건</td>'
+              + '<td class="num muted">' + fmtDate(r.createdAt) + '</td></tr>';
           }).join('')
-        : '<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다.</td></tr>';
+        : '<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></td></tr>';
+
       html += '</tbody></table></div></section>';
-
-      document.getElementById('detail').innerHTML=html;
-
-      // 검토결과서 요청 버튼 — 관리·분석·설계 3단계 모두 완료(RUNNING 없음·이력 존재) 시 활성화
-      updateReportBtn(p);
+      document.getElementById('detail').innerHTML = html;
     }
 
-    // 단계 완료 = 해당 단계 검증이력 존재 + RUNNING 없음
-    function stageDone(code, st){
-      var rs = M.REVIEWS.filter(function(r){ return r.project===code && r.stage===st; });
-      return rs.length>0 && !rs.some(function(r){ return r.status==='RUNNING'; });
+    function load(){
+      document.getElementById('scopeTag').innerHTML = '<span class="pill g">전체</span>';
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(render)
+        .catch(function(err){
+          document.getElementById('detail').innerHTML =
+            '<section class="panel"><div class="p-body"><span class="err">검토 목록을 불러오지 못했습니다 (' + e(err.message) + ').</span></div></section>';
+        });
     }
-    function updateReportBtn(p){
-      var btn=document.getElementById('reqReportBtn');
-      var allDone = ['관리','분석','설계'].every(function(st){ return stageDone(p.code, st); });
-      btn.disabled = !allDone;
-      btn.title = allDone ? '' : '관리·분석·설계 단계가 모두 완료되어야 요청할 수 있습니다.';
-      btn.onclick = allDone ? function(){
-        if(!confirm('['+p.code+'] 검토결과서를 요청하시겠습니까?\nQA 승인 후 발급됩니다.')) return;
-        M.addNotification({ to:(u.name||'QA'), type:'report', title:'검토결과서 요청 접수',
-          message:'['+p.code+'] '+p.name+' 검토결과서 발급 요청이 접수되었습니다.',
-          projectId:p.id, projectCode:p.code, by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
-        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-        alert('검토결과서를 요청했습니다. 이후 진행은 알림으로 안내됩니다.');
-      } : null;
-      if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.querySelector('.page-head'));
-    }
+
+    document.getElementById('refreshBtn').addEventListener('click', load);
+    load();
   </script>
 </body>
 </html>
