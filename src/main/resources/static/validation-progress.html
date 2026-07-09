@@ -58,6 +58,9 @@
     }
     function projList(){
       var seen={}, out=[];
+      // 실제 프로젝트 전체를 먼저 노출 (검토 이력 0건이어도 선택 가능)
+      M.PROJECTS.forEach(function(p){ if(!seen[p.code]){ seen[p.code]=1; out.push({code:p.code, name:p.name}); } });
+      // 이력에만 존재하는 코드(프로젝트 미연결 → '미지정' 등)를 뒤에 추가
       ALL.forEach(function(r){ if(!seen[r.projectCode]){ seen[r.projectCode]=1; out.push({code:r.projectCode, name:r.projectName}); } });
       return out;
     }
@@ -152,6 +155,8 @@
       var pref=null, rid=params.get('reviewId'), pid=params.get('projectId');
       if(rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv) pref=rv.projectCode; }
       if(!pref && pid){ var pj=M.PROJECTS.filter(function(p){return String(p.id)===String(pid);})[0]; if(pj) pref=pj.code; }
+      // 지정된 우선순위가 없으면 검토 이력이 있는 프로젝트를 기본 선택 (빈 화면 방지)
+      if(!pref && ALL.length) pref=ALL[0].projectCode;
       if(!fillProjects(pref)){
         document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></div></section>';
         return;
