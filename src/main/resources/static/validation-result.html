@@ -18,7 +18,6 @@
       <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
       <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
       <div class="spacer"></div>
-      <span class="muted" id="scopeTag"></span>
     </div>
 
     <div id="detail"><section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">불러오는 중…</div></section></div>
@@ -177,7 +176,6 @@
     }
 
     function load(){
-      document.getElementById('scopeTag').innerHTML='<span class="pill g">'+((u.role==='PM')?'내 프로젝트':'전체')+'</span>';
       fetch('/api/reviews')
         .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
         .then(function(list){ USE_API=true; ALL=list.map(normApi); afterLoad(); })
