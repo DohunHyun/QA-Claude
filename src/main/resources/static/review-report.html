@@ -11,10 +11,8 @@
     <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 검토결과서 <span class="sep">›</span> 단계말 검토결과서</div>
     <div class="page-head">
       <div><h1>단계말 검토결과서</h1><p>프로젝트·단계별 최종 검토 요약과 QA 승인. (HWPX 발급 · 고객사 제출용)</p></div>
+      <div class="btn-row"><button class="btn" id="issueBtn">검토결과서 발급</button></div>
     </div>
-
-    <!-- 실제 검토 결과 기반 QA 승인·발급 (백엔드 연동 · 미연동 시 아래 목업만 표시) -->
-    <div id="realBar"></div>
 
     <!-- 프로젝트 / 단계 선택 -->
     <div class="filterbar">
@@ -117,81 +115,22 @@
       html+= (rows || '<tr><td colspan="4" class="muted" style="text-align:center;padding:22px">해당 단계 검토 결과가 없습니다.</td></tr>');
       html+='</tbody></table></div></section>';
 
-      // ── 결과물 + QA 승인 (최종 등재 산출물 · 검토 결과서) ──
-      html+='<section class="panel"><div class="p-head"><h2>결과물 · QA 승인</h2></div><div class="p-body">'
-        + '<div class="btn-row" style="margin-bottom:12px">'
-        +   '<a class="btn sec" href="#">최종 등재 산출물</a>'
-        +   '<a class="btn sec" href="#">검토 결과서</a>'
-        + '</div>'
-        + '<div class="inline" style="gap:14px;border-top:1px solid var(--line);padding-top:12px">'
-        +   '<label class="soft" style="font-weight:700">QA 검증자</label>'
-        +   '<input type="text" id="qaName" placeholder="담당자명" style="max-width:180px"'
-        +      (issued ? ' value="'+e(issued.by)+'" disabled' : '') + '>'
-        +   '<div style="margin-left:auto">'
-        +     '<button class="btn warn" id="approveBtn" data-role="QA" data-role-mode="disable"'+(canApprove?'':' disabled')+'>'
-        +        (issued ? '발급 완료 ('+e(issued.at)+')'
-                 : canApprove ? '승인 및 결과서 발급' : '개선 항목 미해결 — 승인 불가')+'</button>'
-        +   '</div>'
-        + '</div></div></section>';
-
       document.getElementById('detail').innerHTML=html;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
     }
 
-    // 승인 및 결과서 발급 (재렌더마다 버튼이 새로 생기므로 위임 바인딩)
-    document.getElementById('detail').addEventListener('click', function(ev){
-      var btn = ev.target.closest('#approveBtn');
-      if(!btn || btn.disabled) return;
-      var p = curProject(); if(!p) return;
+    // 검토결과서 발급 (페이지 헤더 버튼) — 선택된 프로젝트·단계 기준 발급
+    document.getElementById('issueBtn').addEventListener('click', function(){
+      var p = curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
       var stage = document.getElementById('stageSel').value;
-      var name = (document.getElementById('qaName').value || '').trim() || (u.name || 'QA');
-      if(!confirm('['+p.code+'] '+stage+'단계 검토결과서를 승인·발급하시겠습니까?\nQA 검증자: '+name)) return;
+      if(M.issuedReport(p.id, stage)){ alert('['+p.code+'] '+stage+' 단계 검토결과서는 이미 발급되었습니다.'); return; }
+      var name = (u.name || 'QA');
+      if(!confirm('['+p.code+'] '+stage+' 단계 검토결과서를 발급하시겠습니까?\n검증자: '+name)) return;
       M.issueReport(p, stage, name);
       render();
       if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+      alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.');
     });
-  </script>
-  <script>
-    // 실 API 연동: 검토 목록 선택 → QA 승인(POST) → 검토결과서(HWPX) 발급.
-    // 백엔드 미연동/무이력 시 이 바는 숨고 아래 목업이 그대로 표시된다.
-    (function(){
-      var box=document.getElementById('realBar');
-      var pre=new URLSearchParams(location.search).get('reviewId');
-      fetch('/api/reviews')
-        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
-        .then(function(list){
-          if(!list.length) return;
-          box.innerHTML='<section class="panel" style="border:1.5px solid #284b8a55">'
-            +'<div class="p-head"><h2>실제 단계말 검토결과서 발급</h2><span class="more">QA 승인 후 HWPX(.hwpx)</span></div>'
-            +'<div class="p-body">'
-            +'<div class="inline" style="gap:12px">'
-            +'<label class="soft" style="font-weight:700">검토 회차</label>'
-            +'<select id="realRev" style="max-width:460px">'
-            + list.map(function(x){ return '<option value="'+x.reviewId+'">#'+x.reviewId+' · '+M.esc(x.artifactLabel||'미분류')+' · '+(x.passed?'통과':'미통과')+' · 결함 '+x.defectCount+'건</option>'; }).join('')
-            +'</select>'
-            +'<button class="btn warn" id="realApprove" style="margin-left:auto">QA 승인</button>'
-            +'<a class="btn" id="realIssue">검토결과서 발급 (HWPX)</a>'
-            +'</div>'
-            +'<div id="realMsg" class="muted" style="margin-top:8px">먼저 <b>QA 승인</b> 후 <b>발급</b> 버튼으로 HWPX를 내려받습니다.</div>'
-            +'</div></section>';
-          var sel=document.getElementById('realRev');
-          if(pre && list.some(function(x){return String(x.reviewId)===String(pre);})) sel.value=pre;
-          function sync(){ document.getElementById('realIssue').href='/api/reviews/'+sel.value+'/review-report'; }
-          sel.addEventListener('change', sync); sync();
-          document.getElementById('realApprove').addEventListener('click', function(){
-            var id=sel.value;
-            if(!confirm('검토 #'+id+' 를 QA 승인하시겠습니까?\n(개선 항목 잔존 시 QA 예외 승인으로 처리됩니다.)')) return;
-            var msg=document.getElementById('realMsg'); msg.textContent='승인 처리 중…';
-            fetch('/api/reviews/'+id+'/approve?exception=true', { method:'POST' })
-              .then(function(res){ return res.json().then(function(j){ return { ok:res.ok, j:j }; }); })
-              .then(function(r){ msg.innerHTML = r.ok
-                ? '<span class="state done">승인 완료</span> 이제 \'검토결과서 발급\' 버튼으로 HWPX를 내려받을 수 있습니다.'
-                : '<span class="err">승인 실패: '+M.esc(r.j.message||'')+'</span>'; })
-              .catch(function(err){ msg.innerHTML='<span class="err">승인 오류: '+M.esc(err.message)+'</span>'; });
-          });
-        })
-        .catch(function(){ /* 백엔드 미연동 — 목업만 표시 */ });
-    })();
   </script>
 </body>
 </html>
