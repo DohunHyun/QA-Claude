@@ -101,9 +101,6 @@
         '<div class="page-head">'
         + '<div><h1>'+e(p.name)+' <span class="pill">'+e(p.code)+'</span></h1>'
         + '<p>PM '+e(p.pm)+' · 기간 '+e(p.start||'-')+' ~ '+e(p.end||'-')+' · 상태 '+M.stateHtml(p.status)+'</p></div>'
-        + (isValidatable(p)
-            ? '<a class="btn" href="validation-upload.html?projectId='+p.id+'" data-role="PM">산출물 검증</a>'
-            : '<span class="pill g">'+(p.status==='REQUESTED'?'승인 대기 — 검증 불가':(p.status==='REJECTED'?'반려됨':'검증 대기'))+'</span>')
         + '</div>';
 
       html += '<section class="panel"><div class="p-head"><h2>단계별 진행</h2><span class="more">§7.1 업무 프로세스</span></div>'
@@ -117,7 +114,6 @@
         + '</div>';
 
       html += '<section class="panel"><div class="p-head"><h2>산출물별 검증 현황</h2>'
-        + (isValidatable(p) ? '<a class="more" href="validation-upload.html?projectId='+p.id+'" data-role="PM">＋ 검증</a>' : '')
         + '</div><div class="p-body flush"><div class="tbl-scroll"><table class="tbl">'
         + '<thead><tr><th class="num">단계</th><th class="num">코드</th><th>산출물</th><th class="num">최근회차</th><th class="num">상태</th><th class="num">판정</th><th class="num">개선</th><th class="num">권고</th><th class="num">최근검증</th></tr></thead><tbody>';
       html += artRows.length
