@@ -17,6 +17,7 @@
     <div class="filterbar">
       <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
       <div class="fg"><label>단계</label><select id="stageSel"><option value="">전체</option><option>관리</option><option>분석</option><option>설계</option></select></div>
+      <div class="fg"><label>회차</label><select id="roundSel"><option value="">최신</option></select></div>
       <div class="spacer"></div>
     </div>
 
@@ -58,11 +59,20 @@
       return out;
     }
     function curCode(){ return document.getElementById('projSel').value; }
-    function latestByArtifact(code, stageF){
-      var revs=ALL.filter(function(r){ return r.projectCode===code && (!stageF || r.stage===stageF); });
+    // roundF 지정 시 해당 회차의 산출물, 미지정 시 산출물별 최신 회차
+    function byArtifact(code, stageF, roundF){
+      var revs=ALL.filter(function(r){ return r.projectCode===code && (!stageF || r.stage===stageF)
+        && (!roundF || String(r.round)===String(roundF)); });
       var byArt={};
       revs.forEach(function(r){ if(!byArt[r.artifactLabel] || r.round>byArt[r.artifactLabel].round) byArt[r.artifactLabel]=r; });
       return Object.keys(byArt).map(function(k){ return byArt[k]; }).sort(function(a,b){ return b.reviewId-a.reviewId; });
+    }
+    // 프로젝트 회차 드롭다운 채우기 (distinct 회차)
+    function fillRounds(code){
+      var rounds=[]; ALL.forEach(function(r){ if(r.projectCode===code && rounds.indexOf(r.round)===-1) rounds.push(r.round); });
+      rounds.sort(function(a,b){return a-b;});
+      document.getElementById('roundSel').innerHTML='<option value="">최신</option>'
+        + rounds.map(function(r){ return '<option value="'+r+'">'+r+'회차</option>'; }).join('');
     }
 
     function render(){
@@ -80,13 +90,14 @@
       }).join('');
       var html='<div class="kpis" style="grid-template-columns:repeat(3,1fr)">'+summary+'</div>';
 
-      // ── 산출물별 최신 검토 결과 (최대 4건) ──
-      var arts=latestByArtifact(code, stageF).slice(0,4);
-      html+='<section class="panel"><div class="p-head"><h2>산출물별 최신 검토 결과 '
+      // ── 산출물별 검토 결과 (회차 선택 시 그 회차, 미선택 시 최신) ──
+      var roundF=document.getElementById('roundSel').value;
+      var arts=byArtifact(code, stageF, roundF).slice(0,4);
+      html+='<section class="panel"><div class="p-head"><h2>산출물별 '+(roundF?e(roundF)+'회차':'최신')+' 검토 결과 '
         +'<span class="muted" style="font-weight:400">(최대 4건)</span></h2>'
-        +'<span class="more">'+e(code)+(stageF?' · '+e(stageF)+'단계':'')+'</span></div>'
+        +'<span class="more">'+e(code)+(stageF?' · '+e(stageF)+'단계':'')+(roundF?' · '+e(roundF)+'회차':'')+'</span></div>'
         +'<div class="p-body flush"><div class="tbl-scroll"><table class="tbl">'
-        +'<thead><tr><th>산출물</th><th class="num">단계</th><th class="num">최신회차</th><th class="num">결함</th><th class="num">판정</th><th class="num">상세</th><th class="num">예외처리</th></tr></thead><tbody>';
+        +'<thead><tr><th>산출물</th><th class="num">단계</th><th class="num">회차</th><th class="num">결함</th><th class="num">판정</th><th class="num">상세</th><th class="num">예외처리</th></tr></thead><tbody>';
       html += arts.length ? arts.map(function(r){
         var canExc=r.status==='COMPLETED' && (r.defectCount||0)>0 && !r.passed;
         var excBtn='<button class="btn sm sec exc-btn" data-role="PM" data-role-mode="disable" '
@@ -164,8 +175,9 @@
         alert(art+' 예외처리를 요청했습니다. 이후 진행은 알림으로 안내됩니다.');
       }
     });
-    document.getElementById('projSel').addEventListener('change', render);
+    document.getElementById('projSel').addEventListener('change', function(){ fillRounds(curCode()); render(); });
     document.getElementById('stageSel').addEventListener('change', render);
+    document.getElementById('roundSel').addEventListener('change', render);
 
     function fillProjects(preferCode){
       var ps=projList(), sel=document.getElementById('projSel');
@@ -190,6 +202,7 @@
         return;
       }
       if(stagePre) document.getElementById('stageSel').value=stagePre;
+      fillRounds(curCode());
       render();
     }
     load();

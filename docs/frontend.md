@@ -27,8 +27,8 @@ static/
 ├── project-new.html        # 프로젝트 신청 (PM) → 신청(REQUESTED), 승인 후 검증 가능
 ├── project-detail.html     # 프로젝트 현황 — ?projectId= 동적 렌더 + 선택 드롭다운
 ├── project-approval.html   # ★ 프로젝트 승인 (관리자) — 승인/반려 + 상태변경
-├── validation-upload.html  # 단계별 검증(업로드) — 실 API /api/validate, 업로드 후 alert → 검토 현황 안내
-├── validation-progress.html# 검토 현황 — 프로젝트+단계 필터, 검증 큐(단계 컬럼)·검토결과서 요청
+├── validation-upload.html  # 단계별 검증(업로드) — 실 API /api/validate, 업로드 후 alert → 검증 현황 안내
+├── validation-progress.html# 검증 현황 — 프로젝트+단계 필터, 검증 큐(단계 컬럼)·검토결과서 요청
 ├── validation-result.html  # 검증 결과 — 프로젝트+단계, 산출물별 최신결과(최대 4)·예외처리 요청
 ├── corrective-actions.html # 시정조치관리대장 — 프로젝트+단계·회차 필터(3그룹 17열, §4.4)
 ├── review-report.html      # 단계말 검토결과서 — 프로젝트+단계그룹(분석/설계·테스트/이행), QA 승인
@@ -51,7 +51,7 @@ static/
 
 - **NAV 정의**: 상단 대분류 → 좌측 그룹/항목. 각 항목에 `roles: [...]` (미지정=전체 허용).
   - 상단: `portal(나의업무)`, `project(프로젝트)`, `validate(AI 검증)`, `action(시정조치)`, `report(검토결과서)`, `standard(업무표준)`, `stats(현황/통계)`
-  - **상단 "AI 검증" 클릭 → 검토 현황(`validation-progress`)** 으로 진입. AI 검증 사이드바는 `검토 현황`/`검증 결과` + 단계별 검증 3종(→업로드 화면). 사이드바 상단 검색박스 제거됨.
+  - **상단 "AI 검증" 클릭 → 검증 현황(`validation-progress`)** 으로 진입. AI 검증 사이드바는 `검증 현황`/`검증 결과` + 단계별 검증 3종(→업로드 화면). 사이드바 상단 검색박스 제거됨.
 - **역할 게이팅**:
   - 상단/사이드바 메뉴: `can(roles)`로 필터링
   - 버튼/요소: HTML에 `data-role="PM,QA"` → 그 역할만 노출. `data-role-mode="disable"` 부가 시 숨김 대신 **회색 비활성**(`.is-disabled`).
@@ -137,13 +137,13 @@ localStorage.removeItem('qagpt.reports')        // 검토결과서 발급 기록
 - **login** → 계정 클릭 시 자동입력, `authenticate` 검증 후 `setUser` → dashboard.
 - **project-new** → 필수값 검증 → `M.addProject`(현재 PM 소유, 상태 REQUESTED)로 저장 → 성공 박스에 **"관리자 승인 후 산출물 검증 가능, 결과는 알림으로 전달"** 안내 + 프로젝트 목록 링크. 실 API `POST /api/projects`도 호출(성공/실패 무관 목업 저장). ※ 신청 직후 산출물 업로드로 넘어가는 자동 이동은 **제거됨**(승인 게이팅으로 대체).
 - **project-detail** → 상단 **프로젝트 선택 드롭다운**(visibleProjects) + `?projectId=`로 진입. 선택 프로젝트 기준으로 헤더·**단계 흐름(상태/단계 자동 계산)**·KPI·산출물별 현황·회차별 이력을 모두 `M.REVIEWS`(project 코드 필터)에서 **동적 렌더**. 승인(ACTIVE/APPROVED)만 "산출물 검증" 버튼 노출. `projects.html`의 이름·현황 링크가 `?projectId=` 전달.
-- **validation-upload** (단계별 검증) → 대상 프로젝트 드롭다운은 `M.validatableProjects()`로 **승인(ACTIVE/APPROVED)된 것만** 노출. `?projectId=`·`?stage=` 지원. **멀티파일 업로드**(input `multiple` + 드래그앤드롭): 1개 → `POST /api/validate`, 2개 이상 → `POST /api/validate-batch`(파일별 자동 인식). **ID 직접입력·산출물 유형 드롭다운·하단 안내(note)는 제거됨** — 유형은 항상 자동 인식. 검증 실행 → 업로드 완료 후 alert("검증을 시작합니다. 이후 과정은 검토 현황에서 확인해주세요.") + 파일 초기화.
+- **validation-upload** (단계별 검증) → 대상 프로젝트 드롭다운은 `M.validatableProjects()`로 **승인(ACTIVE/APPROVED)된 것만** 노출. `?projectId=`·`?stage=` 지원. **멀티파일 업로드**(input `multiple` + 드래그앤드롭): 1개 → `POST /api/validate`, 2개 이상 → `POST /api/validate-batch`(파일별 자동 인식). **ID 직접입력·산출물 유형 드롭다운·하단 안내(note)는 제거됨** — 유형은 항상 자동 인식. 검증 실행 → 업로드 완료 후 alert("검증을 시작합니다. 이후 과정은 검증 현황에서 확인해주세요.") + 파일 초기화.
 - **project-approval** (관리자) → 승인 대기 목록에서 **승인**(→ACTIVE) / **반려**(→REJECTED) → `setProjectStatus` → 목록·전체상태 갱신 + PM 알림 생성.
 - **dashboard** → 브레드크럼 제거. 상단 **품질검증 배너**(`.qbanner`, NH TMS+ 스타일 인라인 SVG). "나의 현황" 옆 **프로젝트 선택 콤보**(`#dashProjSel`) → 선택 프로젝트 기준으로 **단계 진행 스트립**(관리/분석/설계 완료·진행중·예정)과 KPI(검증 진행 중·**미조치 개선**·**미조치 권고**·누적 검토회차)를 재렌더. 알림 패널(NEW·모두 읽음), 내 프로젝트 표(코드 대신 담당 PM), 공지/ActionItem/결재.
 - **statistics** (프로젝트 현황) → `STAT_PROJECTS`(10건) 기반 **전사 포트폴리오 현황**으로 재구성. 요약 KPI(전체/진행중/누적 개선/평균 조치완료율) + **프로젝트×단계(관리·분석·설계·테스트·이행) 현황 매트릭스**(완료 done/진행중 run/예정 wait 색상 도트) + 검토·개선·권고·조치완료율. 결함유형 6종 분포·개선/권고 도넛은 실 3개 프로젝트 DEFECTS 기준. (범위 드롭다운은 제거)
 - **review-report** → **프로젝트 + 단계 그룹(분석/설계 · 테스트/이행) 선택**(`STAGE_GROUPS` 매핑). **검토 개요**(단계 정보·누적 검토회차·누적 개선·누적 권고) + 검토 항목(산출물·단계·결과·내용 — **근거 위치 제거**) + 결과물 2종(**최종 등재 산출물·검토 결과서**). QA 승인 버튼: 개선 합계 0 + 이력 존재 시 활성 → `M.issueReport` 발급·PM 알림. ⚠️ 데이터가 관리/분석/설계 기반이라 **테스트/이행 그룹은 표본 없음**(실 내용은 분석/설계).
-- **validation-progress** (검토 현황) → **데이터는 `GET /api/reviews` 실 API 우선 → 실패 시 `M.REVIEWS` 목업 폴백**(정적 프리뷰에서도 동작). **프로젝트 + 단계 필터**(프로젝트는 검토 목록의 projectCode로 구성) + 진행 중 4-Phase 패널 + 검증 큐/이력(**단계·판정 컬럼**). **검토결과서 요청 버튼**: 선택 프로젝트의 관리·분석·설계 모두 완료 시 활성 → `M.addNotification` 알림. 행 클릭 → `?reviewId=`.
-- **validation-result** → **실 API 우선 + 목업 폴백**. **프로젝트 + 단계 필터** + 단계별 검토 회차 요약 + **산출물별 최신 검토 결과(최대 4건)** + 산출물별 **예외처리 요청**(알림) + 결함 상세(`GET /api/reviews/{id}/defects` / 목업) + 실 결과물 다운로드. `?reviewId=`(프로젝트·단계 자동)·`?projectId=` 지원.
+- **validation-progress** (검증 현황) → **데이터는 `GET /api/reviews` 실 API 우선 → 실패 시 `M.REVIEWS` 목업 폴백**(정적 프리뷰에서도 동작). **프로젝트 + 단계 필터**(프로젝트는 검토 목록의 projectCode로 구성) + 진행 중 4-Phase 패널 + 검증 큐/이력(**단계·판정 컬럼**). **검토결과서 요청 버튼**: 선택 프로젝트의 관리·분석·설계 모두 완료 시 활성 → `M.addNotification` 알림. 행 클릭 → `?reviewId=`.
+- **validation-result** → **실 API 우선 + 목업 폴백**. **프로젝트 + 단계 + 회차 필터**(회차는 프로젝트별 동적, "최신" 기본) + 단계별 검토 회차 요약 + **산출물별 검토 결과(최대 4건, 선택 회차 또는 최신)** + 산출물별 **예외처리 요청**(알림) + 결함 상세(`GET /api/reviews/{id}/defects` / 목업) + 실 결과물 다운로드. `?reviewId=`(프로젝트·단계 자동)·`?projectId=` 지원.
   - ⚙️ 백엔드 `ReviewSummaryDto`에 **projectId·projectCode·projectName·stage 필드 추가**(Document→Project, ReviewResult.stage 활용 — 스키마 변경 없음)로 API 응답에서 프로젝트·단계 필터가 가능해짐.
 - **corrective-actions** → **프로젝트 선택 + 단계·회차·검색 필터**(판정·조치상태 필터는 제거, 회차는 프로젝트별 동적). `M.defectsFor(code)`로 §4.4 3그룹 17열 스키마 렌더, 대상/완료/잔여·기준일 집계. `?projectId=` 지원.
 - **standards** → 체크리스트 12종 표(단계 필터, 컬럼: No·단계·문서코드·산출물명·파일·보기 — API 연결 상태 컬럼은 제거됨) + **"기준 보기" 버튼**: `checklists/<file>.md` fetch → 간이 md 렌더러(제목·표·리스트·`[개선]`/`[권고]` 배지)로 **모달**(app.css `.modal-back`/`.modal`, ESC·배경클릭 닫기) 표시. ⚠️ `static/checklists/`는 `docs/checklists/`의 미러 — 원본(docs) 수정 시 복사 필요.
