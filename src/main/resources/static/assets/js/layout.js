@@ -42,7 +42,7 @@
       key: 'validate', label: 'AI 검증', href: 'validation-progress.html', roles: ['PM','QA'],
       side: [
         { g: '검증', items: [
-          { p: 'validation-progress', label: '검토 현황', href: 'validation-progress.html' },
+          { p: 'validation-progress', label: '검증 현황', href: 'validation-progress.html' },
           { p: 'validation-result', label: '검증 결과', href: 'validation-result.html' }
         ]},
         { g: '단계별 검증', items: [

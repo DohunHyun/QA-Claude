@@ -103,7 +103,7 @@
     }
 
     // 검증 실행 — 1개면 /api/validate, 2개 이상이면 /api/validate-batch (파일별 자동 인식)
-    // 업로드 완료 후에는 화면 내 진행 표시 없이 안내 alert → 이후 과정은 검토 현황에서 확인.
+    // 업로드 완료 후에는 화면 내 진행 표시 없이 안내 alert → 이후 과정은 검증 현황에서 확인.
     $('#uploadForm').on('submit', function(ev){
       ev.preventDefault();
       var fs = Array.prototype.slice.call($file[0].files);
@@ -127,7 +127,7 @@
           $('#submitBtn').prop('disabled', false).text('검증 실행');
           $file.val('');
           showFile();
-          alert('검증을 시작합니다. 이후 과정은 검토 현황에서 확인해주세요.');
+          alert('검증을 시작합니다. 이후 과정은 검증 현황에서 확인해주세요.');
         });
     });
   </script>
