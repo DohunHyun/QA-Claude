@@ -133,30 +133,33 @@
       var pcode = sepIdx >= 0 ? optText.slice(0, sepIdx) : optText;
       var pname = sepIdx >= 0 ? optText.slice(sepIdx + 3) : optText;
       var fileNames = fs.map(function(f){ return f.name; });
+      var url = fs.length === 1 ? '/api/validate' : '/api/validate-batch';
 
-      // 업로드 요청을 백그라운드로 던진다(응답을 기다리지 않음 → 즉시 안내/이동).
-      var fd = new FormData();
-      if(pid) fd.append('projectId', pid);
-      var url;
-      if(fs.length === 1){ url = '/api/validate'; fd.append('file', fs[0]); }
-      else { url = '/api/validate-batch'; fs.forEach(function(f){ fd.append('files', f); }); }
-      $.ajax({ url:url, type:'POST', data:fd, processData:false, contentType:false });
+      // 완료 매칭 기준선(baseline)은 반드시 업로드 '이전'의 최대 reviewId 여야 한다.
+      //   /api/validate는 동기(검증 완료 후 응답)라, 업로드를 먼저 던지고 alert이 뜬 사이
+      //   빠른 '통과' 케이스가 끝나 새 리뷰가 생기면, 그 뒤 baseline을 읽을 때 baseline==새 id
+      //   가 되어 매칭에 실패(99% 무한대기)한다. → baseline을 업로드 발사 전에 확보한다.
+      function start(baseline){
+        var fd = new FormData();
+        if(pid) fd.append('projectId', pid);
+        if(fs.length === 1){ fd.append('file', fs[0]); }
+        else { fs.forEach(function(f){ fd.append('files', f); }); }
+        $.ajax({ url:url, type:'POST', data:fd, processData:false, contentType:false });  // 백그라운드
 
-      alert('검증을 시작합니다. 검증 현황에서 진행 상태를 확인하세요.');
-
-      // 완료 매칭 기준선(baseline: 현재 최대 reviewId) 확보 → 대기행 등록 → 검증 현황 이동.
-      function go(baseline){
         var now = Date.now();
         fileNames.forEach(function(fn){
           M.addPendingReview({ projectId: pid || null, projectCode: pcode, projectName: pname,
             stage: stageKr || '-', fileName: fn, round: 1, startedAt: now, baselineMaxReviewId: baseline });
         });
+        alert('검증을 시작합니다. 검증 현황에서 진행 상태를 확인하세요.');
         location.href = 'validation-progress.html?projectId=' + encodeURIComponent(pid || '')
           + '&code=' + encodeURIComponent(pcode);
       }
+
+      // baseline을 먼저 읽고(업로드 발사 이전) → 업로드 + 대기행 등록 + 이동.
       $.getJSON('/api/reviews')
-        .done(function(list){ go((list||[]).reduce(function(m, r){ return Math.max(m, r.reviewId||0); }, 0)); })
-        .fail(function(){ go(0); });
+        .done(function(list){ start((list||[]).reduce(function(m, r){ return Math.max(m, r.reviewId||0); }, 0)); })
+        .fail(function(){ start(0); });
     });
   </script>
 </body>
