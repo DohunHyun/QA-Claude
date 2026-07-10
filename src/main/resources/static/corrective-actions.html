@@ -127,7 +127,7 @@
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
     }
 
-    // 화면에 표시된 시정조치서 테이블을 Excel(.xls)로 내보낸다 (부적합사항 11 + 계획 4 + 확인 2 = 17열).
+    // [폴백] 화면 표를 클라이언트에서 .xls(HTML)로 내보낸다. 백엔드 API 미가용 시에만 사용.
     function exportExcel(){
       var p=curProject();
       var cols=['No','업무명','구분','검토일','검토자','산출물명','파일명','부적합 위치','개선유형','결함유형','결함내용',
@@ -151,8 +151,41 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(a.href); }, 0);
     }
+    // 선택된 프로젝트(코드 기준)의 검토 회차 중 필터(단계·회차)에 맞는 최신 reviewId를 고른다.
+    function pickReviewId(reviews){
+      var p=curProject(); if(!p) return null;
+      var stageF=document.getElementById('stageSel').value;
+      var roundF=document.getElementById('roundSel').value;
+      var base=reviews.filter(function(rv){ return rv.projectCode===p.code; });
+      var f=base.slice();
+      if(stageF) f=f.filter(function(rv){ return rv.stage===stageF; });
+      if(roundF) f=f.filter(function(rv){ return String(rv.round)===String(roundF); });
+      var pick=(f.length?f:base).slice().sort(function(a,b){ return b.reviewId-a.reviewId; });
+      return pick[0] ? pick[0].reviewId : null;
+    }
+
+    // 진짜 .xlsx(표지·개정이력·시정조치서 3시트)를 백엔드에서 받아 다운로드한다.
+    // API 미가용/해당 리뷰 없음 → 기존 클라이언트 방식(exportExcel)으로 자동 폴백.
+    function downloadLedger(){
+      var btn=document.getElementById('excelBtn');
+      var label=btn ? btn.textContent : '';
+      if(btn){ btn.disabled=true; btn.textContent='생성 중…'; }
+      var restore=function(){ if(btn){ btn.disabled=false; btn.textContent=label; } };
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+        .then(function(reviews){
+          var rid=pickReviewId(reviews);
+          if(rid==null) throw new Error('no-review');
+          var a=document.createElement('a');
+          a.href='/api/reviews/'+rid+'/corrective-action-ledger';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        })
+        .catch(function(){ exportExcel(); })   // API 없거나 리뷰 없음 → 폴백
+        .then(restore, restore);
+    }
+
     var _xb=document.getElementById('excelBtn');
-    if(_xb) _xb.addEventListener('click', exportExcel);
+    if(_xb) _xb.addEventListener('click', downloadLedger);
   </script>
 </body>
 </html>
