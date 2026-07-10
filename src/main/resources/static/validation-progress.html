@@ -36,6 +36,7 @@
     var u = M.currentUser() || {};
     var params = new URLSearchParams(location.search);
     var ALL = [];   // 정규화된 검토 목록(프로젝트·단계 포함)
+    var ready = false;   // 최초 로드 완료 여부(애니메이션/폴링 게이트)
 
     var PNAME = {}, PID = {}; M.PROJECTS.forEach(function(p){ PNAME[p.code]=p.name; PID[p.code]=p.id; });
 
@@ -56,12 +57,36 @@
       if(r.status==='COMPLETED') return r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>';
       return '<span class="muted">-</span>';
     }
+    // 대기(진행중) 검증행 → 실제 리뷰와 동일 shape로 정규화 (status RUNNING, 판정 미정)
+    function normPending(p){
+      return { reviewId:p.tempId, projectId:p.projectId, artifactLabel:p.artifactLabel, fileName:p.fileName,
+        projectCode:p.projectCode, projectName:p.projectName, stage:p.stage, round:p.round,
+        status:'RUNNING', passed:null, defectCount:0, createdAt:new Date(p.startedAt).toISOString(),
+        _pending:true, _startedAt:p.startedAt };
+    }
+    // 동적 Phase 그래프 (진행% → 현재 Phase). 기존 .steps/.progress CSS 재사용.
+    var PH_LABELS=['표준 보증','요구사항 품질','정합성 체크','결과물 생성'];
+    var PH_CAPS=['표준 보증 검증 중…','요구사항 품질 검증 중…','정합성 검사 중…','결과물 생성 중…'];
+    function phaseGraphHtml(pct){
+      var phase=Math.max(1,Math.min(4,Math.ceil(pct/25)));
+      var steps=PH_LABELS.map(function(lab,i){
+        var n=i+1, cls=n<phase?'st done':(n===phase?'st cur':'st'), mark=n<phase?'✓':String(n);
+        return '<div class="'+cls+'"><span class="n">'+mark+'</span>Phase'+n+' '+e(lab)+'</div>';
+      }).join('');
+      return '<section class="panel"><div class="p-body">'
+        +'<div class="steps">'+steps+'</div>'
+        +'<div class="progress" style="margin-top:12px"><span style="width:'+pct+'%"></span></div>'
+        +'<div class="muted" style="margin-top:8px">'+e(PH_CAPS[phase-1])+' ('+pct+'%)</div>'
+        +'</div></section>';
+    }
     function projList(){
       var seen={}, out=[];
       // 실제 프로젝트 전체를 먼저 노출 (검토 이력 0건이어도 선택 가능)
       M.PROJECTS.forEach(function(p){ if(!seen[p.code]){ seen[p.code]=1; out.push({code:p.code, name:p.name}); } });
       // 이력에만 존재하는 코드(프로젝트 미연결 → '미지정' 등)를 뒤에 추가
       ALL.forEach(function(r){ if(!seen[r.projectCode]){ seen[r.projectCode]=1; out.push({code:r.projectCode, name:r.projectName}); } });
+      // 대기(진행중) 검증만 있는 프로젝트도 선택 가능하게 추가
+      M.pendingReviews().forEach(function(p){ if(!seen[p.projectCode]){ seen[p.projectCode]=1; out.push({code:p.projectCode, name:p.projectName}); } });
       return out;
     }
     function curCode(){ return document.getElementById('projSel').value; }
@@ -69,22 +94,21 @@
     function render(){
       var code=curCode();
       var stageF=document.getElementById('stageSel').value;
-      var revs=ALL.filter(function(r){ return r.projectCode===code && (!stageF || r.stage===stageF); })
-                  .slice().sort(function(a,b){ return b.reviewId-a.reviewId; });
+      var pend=M.pendingReviewsFor(code).map(normPending)
+                .filter(function(r){ return !stageF || r.stage===stageF; });
+      var real=ALL.filter(function(r){ return r.projectCode===code && (!stageF || r.stage===stageF); });
+      var revs=pend.concat(real).sort(function(a,b){
+        var ar=(a.status==='RUNNING'||a.status==='PENDING')?1:0, br=(b.status==='RUNNING'||b.status==='PENDING')?1:0;
+        if(ar!==br) return br-ar;            // 진행중을 상단으로
+        return b.reviewId-a.reviewId;
+      });
       var running=revs.filter(function(r){ return r.status==='RUNNING'||r.status==='PENDING'; });
 
       var html='';
       if(running.length){
         html += running.map(function(r){
-          return '<section class="panel"><div class="p-body">'
-            +'<div class="steps">'
-            +'<div class="st done"><span class="n">✓</span>Phase1 표준 보증</div>'
-            +'<div class="st done"><span class="n">✓</span>Phase2 요구사항 품질</div>'
-            +'<div class="st cur"><span class="n">3</span>Phase3 정합성 체크</div>'
-            +'<div class="st"><span class="n">4</span>Phase4 결과물 생성</div></div>'
-            +'<div class="progress" style="margin-top:12px"><span style="width:62%"></span></div>'
-            +'<div class="muted" style="margin-top:8px">표준·요구사항 품질 검증 완료 → 정합성 검사 중…</div>'
-            +'</div></section>';
+          var pct = r._pending ? M.phaseProgress(r._startedAt).pct : 62;
+          return phaseGraphHtml(pct);
         }).join('');
       } else {
         html += '<div class="note" style="margin-bottom:14px">현재 <b>'+e(PNAME[code]||code)+'</b>에 진행 중인 검증이 없습니다.</div>';
@@ -96,7 +120,7 @@
         +'<thead><tr><th class="num">검토ID</th><th class="num">단계</th><th>산출물</th><th>파일명</th><th class="num">회차</th><th style="width:160px">진행</th><th class="num">상태</th><th class="num">판정</th><th class="num">검증일</th></tr></thead><tbody>';
       html += revs.length
         ? revs.map(function(r){
-            var pct=(r.status==='RUNNING'||r.status==='PENDING')?62:(r.status==='COMPLETED'?100:0);
+            var pct=r._pending?M.phaseProgress(r._startedAt).pct:((r.status==='RUNNING'||r.status==='PENDING')?62:(r.status==='COMPLETED'?100:0));
             return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.reviewId+'\'" style="cursor:pointer">'
               +'<td class="num">#'+r.reviewId+'</td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
               +'<td><b>'+e(r.artifactLabel)+'</b></td><td class="muted wrap-any">'+e(r.fileName||'-')+'</td>'
@@ -155,17 +179,44 @@
       return true;
     }
 
+    // 대기행 완료 매칭: projectId(또는 code) + fileName 일치 & baseline 초과한 COMPLETED 실제
+    // 리뷰가 나타나면 해당 대기행을 제거 → 실제 리뷰가 100%·완료·판정으로 렌더된다.
+    function reconcile(){
+      M.pendingReviews().forEach(function(p){
+        var hit=ALL.some(function(r){
+          if(r.status!=='COMPLETED') return false;
+          if((r.reviewId||0) <= (p.baselineMaxReviewId||0)) return false;
+          var idMatch=p.projectId!=null && String(r.projectId)===String(p.projectId);
+          var codeMatch=r.projectCode && r.projectCode===p.projectCode;
+          var fileMatch=r.fileName && p.fileName && r.fileName===p.fileName;
+          return (idMatch||codeMatch) && fileMatch;
+        });
+        if(hit) M.removePendingReview(p.tempId);
+      });
+    }
+    // 실제 결과 폴링 — 대기행이 있는 동안만. 결과 도착 시 스왑, 없으면 99% 대기 유지.
+    function pollReal(){
+      if(!ready || !M.pendingReviews().length) return;
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(list){ ALL=list.map(normApi); reconcile(); render(); })
+        .catch(function(){ /* 백엔드 없음 → 실제 결과 없음. 99%에서 계속 대기 */ });
+    }
+
     // 실 API 우선 → 실패 시 목업 폴백
     function load(){
       fetch('/api/reviews')
         .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
-        .then(function(list){ ALL=list.map(normApi); afterLoad(); })
+        .then(function(list){ ALL=list.map(normApi); reconcile(); afterLoad(); })
         .catch(function(){ ALL=M.REVIEWS.map(normMock); afterLoad(); });
     }
     function afterLoad(){
-      // ?reviewId 로 진입 시 그 프로젝트 우선 선택
-      var pref=null, rid=params.get('reviewId'), pid=params.get('projectId');
-      if(rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv) pref=rv.projectCode; }
+      // 진행중(대기) 검증이 있으면 그 프로젝트 우선, 다음 ?code, ?reviewId, ?projectId 순
+      var pref=null, rid=params.get('reviewId'), pid=params.get('projectId'), qcode=params.get('code');
+      var pend=M.pendingReviews();
+      if(pend.length) pref=pend[0].projectCode;
+      if(!pref && qcode) pref=qcode;
+      if(!pref && rid){ var rv=ALL.filter(function(r){return String(r.reviewId)===String(rid);})[0]; if(rv) pref=rv.projectCode; }
       if(!pref && pid){ var pj=M.PROJECTS.filter(function(p){return String(p.id)===String(pid);})[0]; if(pj) pref=pj.code; }
       // 지정된 우선순위가 없으면 목록 상단(첫 프로젝트)부터 — 이력 있는 프로젝트 우선 (빈 화면 방지)
       if(!pref){
@@ -177,6 +228,7 @@
         document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></div></section>';
         return;
       }
+      ready=true;
       render();
     }
 
@@ -184,6 +236,10 @@
     document.getElementById('stageSel').addEventListener('change', render);
     document.getElementById('refreshBtn').addEventListener('click', load);
     load();
+
+    // 진행바 애니메이션(대기행 있을 때만 재렌더) + 실제 결과 폴링
+    setInterval(function(){ if(ready && M.pendingReviews().length) render(); }, 400);
+    setInterval(pollReal, 2500);
   </script>
 </body>
 </html>

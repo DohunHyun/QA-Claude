@@ -119,32 +119,44 @@
     }
 
     // 검증 실행 — 1개면 /api/validate, 2개 이상이면 /api/validate-batch (파일별 자동 인식)
-    // 업로드 완료 후에는 화면 내 진행 표시 없이 안내 alert → 이후 과정은 검증 현황에서 확인.
+    // 업로드는 백그라운드로 던지고(응답 대기 X) 즉시 안내 alert → 검증 현황으로 이동.
+    // 진행 중 표시는 검증 현황에서 클라이언트 시뮬레이션(Phase 애니메이션)으로 보여주고,
+    // 완료·판정은 /api/reviews 실제 결과가 도착할 때만 확정한다.
     $('#uploadForm').on('submit', function(ev){
       ev.preventDefault();
       var fs = Array.prototype.slice.call($file[0].files);
       if(!fs.length){ alert('파일을 선택하세요.'); return; }
 
-      var fd = new FormData();
       var pid = $('#projSel').val();
+      var optText = $('#projSel option:selected').text();   // "CODE · Name"
+      var sepIdx = optText.indexOf(' · ');
+      var pcode = sepIdx >= 0 ? optText.slice(0, sepIdx) : optText;
+      var pname = sepIdx >= 0 ? optText.slice(sepIdx + 3) : optText;
+      var fileNames = fs.map(function(f){ return f.name; });
+
+      // 업로드 요청을 백그라운드로 던진다(응답을 기다리지 않음 → 즉시 안내/이동).
+      var fd = new FormData();
       if(pid) fd.append('projectId', pid);
       var url;
-      if(fs.length === 1){
-        url = '/api/validate';
-        fd.append('file', fs[0]);
-      } else {
-        url = '/api/validate-batch';
-        fs.forEach(function(f){ fd.append('files', f); });
-      }
+      if(fs.length === 1){ url = '/api/validate'; fd.append('file', fs[0]); }
+      else { url = '/api/validate-batch'; fs.forEach(function(f){ fd.append('files', f); }); }
+      $.ajax({ url:url, type:'POST', data:fd, processData:false, contentType:false });
 
-      $('#submitBtn').prop('disabled', true).text('업로드 중…');
-      $.ajax({ url:url, type:'POST', data:fd, processData:false, contentType:false })
-        .always(function(){
-          $('#submitBtn').prop('disabled', false).text('검증 실행');
-          $file.val('');
-          showFile();
-          alert('검증을 시작합니다. 이후 과정은 검증 현황에서 확인해주세요.');
+      alert('검증을 시작합니다. 검증 현황에서 진행 상태를 확인하세요.');
+
+      // 완료 매칭 기준선(baseline: 현재 최대 reviewId) 확보 → 대기행 등록 → 검증 현황 이동.
+      function go(baseline){
+        var now = Date.now();
+        fileNames.forEach(function(fn){
+          M.addPendingReview({ projectId: pid || null, projectCode: pcode, projectName: pname,
+            stage: stageKr || '-', fileName: fn, round: 1, startedAt: now, baselineMaxReviewId: baseline });
         });
+        location.href = 'validation-progress.html?projectId=' + encodeURIComponent(pid || '')
+          + '&code=' + encodeURIComponent(pcode);
+      }
+      $.getJSON('/api/reviews')
+        .done(function(list){ go((list||[]).reduce(function(m, r){ return Math.max(m, r.reviewId||0); }, 0)); })
+        .fail(function(){ go(0); });
     });
   </script>
 </body>
