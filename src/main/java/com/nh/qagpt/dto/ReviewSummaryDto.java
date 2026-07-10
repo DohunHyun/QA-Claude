@@ -23,9 +23,12 @@ public record ReviewSummaryDto(
         String status,
         boolean passed,
         int defectCount,
+        int improvementCount,
+        int recommendationCount,
         String createdAt) {
 
-    public static ReviewSummaryDto from(ReviewResult r, int defectCount) {
+    public static ReviewSummaryDto from(ReviewResult r, int defectCount,
+                                        int improvementCount, int recommendationCount) {
         Document doc = r.getDocument();
         ArtifactType at = doc == null ? null : doc.getArtifactType();
         Project proj = doc == null ? null : doc.getProject();
@@ -43,6 +46,8 @@ public record ReviewSummaryDto(
                 r.getStatus() == null ? null : r.getStatus().name(),
                 r.isPassed(),
                 defectCount,
+                improvementCount,
+                recommendationCount,
                 r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
     }
 }

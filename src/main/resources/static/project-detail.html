@@ -33,8 +33,25 @@
 
     function isValidatable(p){ return p.status === 'ACTIVE' || p.status === 'APPROVED'; }
 
+    // 검증 이력도 백엔드 /api/reviews 단일 소스로 조회(검증 현황과 동일) — 목업 폴백.
+    //   (예전엔 목업 M.REVIEWS 만 봐서, 백엔드에서 실제 검증·통과한 산출물이 '이력 없음'으로 떴음)
+    var REVIEWS = [];
+    function fmtDate(s){ if(!s) return '-'; var d=new Date(s); return isNaN(d.getTime())?String(s).slice(0,10):d.toISOString().slice(0,10); }
+    function normReview(r){
+      return { id:r.reviewId, project:r.projectCode, code:r.artifactType||'-',
+        artifact:r.artifactLabel||'미분류', stage:r.stage||'-', round:r.round,
+        status:r.status, passed:r.passed,
+        error:(r.improvementCount||0), warn:(r.recommendationCount||0), date:fmtDate(r.createdAt) };
+    }
+    function loadReviews(cb){
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(list){ REVIEWS = (list||[]).map(normReview); cb(); })
+        .catch(function(){ REVIEWS = M.REVIEWS; cb(); });   // 백엔드 미연결 → 목업 폴백
+    }
+
     // 백엔드 /api/projects 단일 소스(프로젝트 목록과 동일) — 목업 폴백. 화면 간 목록 일치.
-    M.loadProjects(function(list){
+    loadReviews(function(){ M.loadProjects(function(list){
       if (!list.length) {
         document.getElementById('projSel').innerHTML = '<option>담당 프로젝트 없음</option>';
         document.getElementById('detail').innerHTML =
@@ -56,7 +73,7 @@
         var p = list.filter(function(x){ return String(x.id) === val; })[0];
         if (p) { render(p); history.replaceState(null, '', 'project-detail.html?projectId='+p.id); }
       });
-    });
+    }); });
 
     // ── 단계 흐름 계산 ────────────────────────────────────
     function stageFlow(p){
@@ -83,7 +100,7 @@
 
     // ── 렌더 ──────────────────────────────────────────────
     function render(p){
-      var revs = M.REVIEWS.filter(function(r){ return r.project === p.code; })
+      var revs = REVIEWS.filter(function(r){ return r.project === p.code; })
                           .slice().sort(function(a,b){ return b.id - a.id; });
       var completed = revs.filter(function(r){ return r.status === 'COMPLETED'; });
       var rounds = revs.length;

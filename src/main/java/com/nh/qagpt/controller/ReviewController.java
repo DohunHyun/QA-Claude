@@ -5,6 +5,7 @@ import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.dto.DefectDto;
 import com.nh.qagpt.dto.ReviewResponse;
 import com.nh.qagpt.dto.ReviewSummaryDto;
+import com.nh.qagpt.domain.enums.Severity;
 import com.nh.qagpt.exception.QaApprovalException;
 import com.nh.qagpt.exception.ResourceNotFoundException;
 import com.nh.qagpt.repository.DefectRepository;
@@ -64,7 +65,10 @@ public class ReviewController {
     public List<ReviewSummaryDto> list() {
         return reviewResultRepository.findAll().stream()
                 .sorted((a, b) -> Long.compare(b.getId(), a.getId()))
-                .map(r -> ReviewSummaryDto.from(r, defectRepository.countByReviewResultId(r.getId())))
+                .map(r -> ReviewSummaryDto.from(r,
+                        defectRepository.countByReviewResultId(r.getId()),
+                        (int) defectRepository.countByReviewResultIdAndSeverity(r.getId(), Severity.IMPROVEMENT),
+                        (int) defectRepository.countByReviewResultIdAndSeverity(r.getId(), Severity.RECOMMENDATION)))
                 .toList();
     }
 
