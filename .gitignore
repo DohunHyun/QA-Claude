@@ -39,3 +39,7 @@ Thumbs.db
 
 # ===== 로컬 검증용 샘플 (git 미포함) =====
 /local-samples/
+
+# ===== 생성 산출물(HWPX) · 로컬 사진 (git 미포함) =====
+*.hwpx
+KakaoTalk_Photo_*
