@@ -104,6 +104,18 @@ body {
   <!-- MAIN STAGE (슬라이드 본문 출력부) -->
   <main class="w-full flex flex-col relative min-w-0" id="mainContainer">
 
+    <!-- 우측 상단 발표 시간 측정 위젯 (슬라이드 전환과 무관하게 유지) -->
+    <div class="absolute top-4 right-5 z-50 flex items-center gap-2.5 bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl pl-3.5 pr-2 py-2 shadow-lg shadow-black/30" id="pitchTimerWidget" title="발표 시간 측정">
+      <i class="fas fa-stopwatch text-blue-400"></i>
+      <span id="pitchTimer" class="mono text-xl font-bold text-slate-100 tabular-nums tracking-wide">10:00</span>
+      <button onclick="toggleTimer()" title="시작/일시정지" class="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition flex items-center justify-center">
+        <i class="fas fa-play" id="timerIcon"></i>
+      </button>
+      <button onclick="resetTimer()" title="리셋" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition flex items-center justify-center">
+        <i class="fas fa-rotate-left"></i>
+      </button>
+    </div>
+
     <!-- 슬라이드 뷰포트 영역 -->
     <div class="flex-1 relative flex flex-col justify-center overflow-hidden" id="slideViewport" style="scroll-behavior: smooth;">
       <div id="slideStage" class="w-full mx-auto h-full overflow-y-auto"></div>
@@ -851,7 +863,9 @@ const DECK = [
 // ──────── 글로벌 스크립트 영역 ────────
 let currentSlide = 0;
 let isTimer = false;
-let timerSeconds = 300;
+let remainingSeconds = 600; // 기본 10분
+const TIMER_START = 600;
+let timerInterval = null;
 let isDarkMode = true;
 let currentMode = 'slide';
 
@@ -1025,37 +1039,57 @@ function goSlide(n) {
 // 타이머 토글
 function toggleTimer() {
   isTimer = !isTimer;
-  document.getElementById('timerIcon').classList.toggle('fa-play', !isTimer);
-  document.getElementById('timerIcon').classList.toggle('fa-pause', isTimer);
+  const icon = document.getElementById('timerIcon');
+  if (icon) {
+    icon.classList.toggle('fa-play', !isTimer);
+    icon.classList.toggle('fa-pause', isTimer);
+  }
 
   if (isTimer) {
-    const interval = setInterval(() => {
-      if (isTimer && timerSeconds > 0) {
-        timerSeconds--;
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
         updateTimer();
-      } else if (timerSeconds === 0) {
-        clearInterval(interval);
+      }
+      if (remainingSeconds <= 0) {   // 종료: 정지
+        clearInterval(timerInterval);
+        timerInterval = null;
         isTimer = false;
+        const ic = document.getElementById('timerIcon');
+        if (ic) { ic.classList.add('fa-play'); ic.classList.remove('fa-pause'); }
       }
     }, 1000);
+  } else if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
   }
 }
 
-// 타이머 리셋
+// 타이머 리셋 (10분으로 초기화)
 function resetTimer() {
-  timerSeconds = 300;
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   isTimer = false;
+  remainingSeconds = TIMER_START;
   updateTimer();
-  document.getElementById('timerIcon').classList.add('fa-play');
-  document.getElementById('timerIcon').classList.remove('fa-pause');
+  const icon = document.getElementById('timerIcon');
+  if (icon) {
+    icon.classList.add('fa-play');
+    icon.classList.remove('fa-pause');
+  }
 }
 
-// 타이머 업데이트
+// 타이머 표시 갱신 (남은 시간 카운트다운, 잔여 시간 적을수록 강조)
 function updateTimer() {
-  const min = Math.floor(timerSeconds / 60);
-  const sec = timerSeconds % 60;
-  document.getElementById('pitchTimer').textContent =
-    String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  const min = Math.floor(remainingSeconds / 60);
+  const sec = remainingSeconds % 60;
+  const el = document.getElementById('pitchTimer');
+  if (el) {
+    el.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    el.classList.toggle('text-red-400', remainingSeconds <= 60);   // 1분 이하: 빨강
+    el.classList.toggle('text-amber-400', remainingSeconds > 60 && remainingSeconds <= 120); // 1~2분: 주황
+    el.classList.toggle('text-slate-100', remainingSeconds > 120);
+  }
 }
 
 // 전체화면 토글
