@@ -155,11 +155,10 @@
         // 생성 결과물은 여기서 직접 다운로드하지 않고 각 담당 화면으로 이동 → 해당 화면에서 다운로드.
         var pj=M.PROJECTS.filter(function(x){return x.code===rev.projectCode;})[0];
         var q=pj ? ('?projectId='+pj.id) : '';
-        var go = { imp:'review-report.html'+q+'#improved', led:'corrective-actions.html'+q, rep:'review-report.html'+q };
+        var go = { imp:'review-report.html'+q+'#improved', led:'corrective-actions.html'+q };
         html+='<section class="panel"><div class="p-head"><h2>생성 결과물</h2><span class="more">각 화면에서 다운로드</span></div><div class="p-body"><ul class="dl-list">'
           +'<li><span class="ico">XLSX</span><div class="meta"><b>AI 개선 산출물</b><div>원본 포맷 유지 · 수정 위치 [개선] 태그</div></div><a class="btn sm sec" href="'+go.imp+'">바로가기 ›</a></li>'
           +'<li><span class="ico">XLSX</span><div class="meta"><b>시정조치관리대장</b><div>표지·개정이력·시정조치서 3시트</div></div><a class="btn sm sec" href="'+go.led+'">바로가기 ›</a></li>'
-          +'<li><span class="ico">HWPX</span><div class="meta"><b>단계말 검토결과서</b><div>QA 승인 후 발급</div></div><a class="btn sm sec" href="'+go.rep+'">바로가기 ›</a></li>'
           +'</ul></div></section>';
         box.innerHTML=html;
       });
