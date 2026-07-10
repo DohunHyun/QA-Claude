@@ -88,8 +88,8 @@
       PROJ_API.forEach(function(p){ if(!seen[p.code]){ seen[p.code]=1; out.push({code:p.code, name:p.name}); } });
       // 이력에만 존재하는 코드(프로젝트 미연결 → '미지정' 등)를 뒤에 추가
       ALL.forEach(function(r){ if(!seen[r.projectCode]){ seen[r.projectCode]=1; out.push({code:r.projectCode, name:r.projectName}); } });
-      // 대기(진행중) 검증만 있는 프로젝트도 선택 가능하게 추가
-      M.pendingReviews().forEach(function(p){ if(!seen[p.projectCode]){ seen[p.projectCode]=1; out.push({code:p.projectCode, name:p.projectName}); } });
+      // 대기(진행중) 검증은 '이미 목록에 있는(백엔드/이력) 프로젝트'에만 표시한다.
+      // (DB에서 삭제된 프로젝트의 잔여 대기행이 유령 항목으로 뜨지 않도록 — 정합성)
       return out;
     }
     function curCode(){ return document.getElementById('projSel').value; }
