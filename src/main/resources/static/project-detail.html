@@ -27,20 +27,20 @@
   <script>
     var M = window.MOCK, e = M.esc;
     var u = M.currentUser() || {};
-    var list = M.visibleProjects();            // 역할별 조회 가능 프로젝트
     var params = new URLSearchParams(location.search);
 
-    document.getElementById('scopeTag').innerHTML = (u.role === 'PM')
-      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
+    document.getElementById('scopeTag').innerHTML = '<span class="pill g">전체 프로젝트 · DB</span>';
 
     function isValidatable(p){ return p.status === 'ACTIVE' || p.status === 'APPROVED'; }
 
-    // 선택 드롭다운
-    if (!list.length) {
-      document.getElementById('projSel').innerHTML = '<option>담당 프로젝트 없음</option>';
-      document.getElementById('detail').innerHTML =
-        '<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
-    } else {
+    // 백엔드 /api/projects 단일 소스(프로젝트 목록과 동일) — 목업 폴백. 화면 간 목록 일치.
+    M.loadProjects(function(list){
+      if (!list.length) {
+        document.getElementById('projSel').innerHTML = '<option>담당 프로젝트 없음</option>';
+        document.getElementById('detail').innerHTML =
+          '<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+        return;
+      }
       document.getElementById('projSel').innerHTML = list.map(function(p){
         return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>';
       }).join('');
@@ -56,7 +56,7 @@
         var p = list.filter(function(x){ return String(x.id) === val; })[0];
         if (p) { render(p); history.replaceState(null, '', 'project-detail.html?projectId='+p.id); }
       });
-    }
+    });
 
     // ── 단계 흐름 계산 ────────────────────────────────────
     function stageFlow(p){

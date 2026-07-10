@@ -86,14 +86,8 @@
       }
     }
 
-    // 실 API(/api/projects) 우선 → 실패 시 목업 폴백
-    $.getJSON('/api/projects')
-      .done(function(list){
-        var act = (list||[]).filter(function(p){ return p.status==='ACTIVE' || p.status==='APPROVED'; })
-                            .map(function(p){ return { id:p.id, code:p.code, name:p.name }; });
-        initProjects(act.length ? act : M.validatableProjects());
-      })
-      .fail(function(){ initProjects(M.validatableProjects()); });
+    // 검증 현황과 동일한 단일 소스(백엔드 ACTIVE/APPROVED · code 중복 제거) — 화면 간 목록 일치.
+    M.loadValidatableProjects(initProjects);
 
     // 드랍존 — 선택 파일을 드롭존 안에 표시
     var $file = $('#file');

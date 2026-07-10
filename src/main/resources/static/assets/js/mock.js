@@ -500,11 +500,31 @@ window.MOCK = (function () {
       .catch(function (){ cb(allProjects()); });
   }
 
+  // 검증 대상(승인 완료) 프로젝트 — 검증 현황·단계별 검증 공통 단일 소스.
+  //   백엔드 /api/projects 에서 ACTIVE/APPROVED 만, 같은 code 는 1건으로 합쳐(중복 EFS 등)
+  //   두 검증 화면의 프로젝트 목록을 정확히 일치시킨다. 백엔드 미연결 시 목업 폴백.
+  function loadValidatableProjects(cb){
+    fetch('/api/projects')
+      .then(function (r){ if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (api){
+        var seen = {}, out = [];
+        (api || []).forEach(function (p){
+          if (p.status !== 'ACTIVE' && p.status !== 'APPROVED') return;
+          if (seen[p.code]) return;
+          seen[p.code] = 1;
+          out.push({ id:p.id, code:p.code, name:p.name || p.code, status:p.status });
+        });
+        cb(out.length ? out : validatableProjects());
+      })
+      .catch(function (){ cb(validatableProjects()); });
+  }
+
   return {
     ARTIFACTS: ARTIFACTS, PROJECTS: PROJECTS, REVIEWS: REVIEWS, DEFECTS: DEFECTS, LEDGER: LEDGER,
     NOTICES: NOTICES, ACTIONS: ACTIONS, APPROVALS: APPROVALS, STAT_PROJECTS: STAT_PROJECTS,
     currentUser: currentUser, visibleProjects: visibleProjects, visibleReviews: visibleReviews,
     allProjects: allProjects, addProject: addProject, loadProjects: loadProjects,
+    loadValidatableProjects: loadValidatableProjects,
     pendingProjects: pendingProjects, setProjectStatus: setProjectStatus, validatableProjects: validatableProjects,
     defectsFor: defectsFor,
     pendingReviews: pendingReviews, pendingReviewsFor: pendingReviewsFor,
