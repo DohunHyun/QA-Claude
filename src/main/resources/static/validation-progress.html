@@ -186,13 +186,19 @@
     // 리뷰가 나타나면 해당 대기행을 제거 → 실제 리뷰가 100%·완료·판정으로 렌더된다.
     function reconcile(){
       M.pendingReviews().forEach(function(p){
+        var started=(p.startedAt||0)-120000;   // 시계 오차 2분 허용
         var hit=ALL.some(function(r){
           if(r.status!=='COMPLETED') return false;
-          if((r.reviewId||0) <= (p.baselineMaxReviewId||0)) return false;
           var idMatch=p.projectId!=null && String(r.projectId)===String(p.projectId);
           var codeMatch=r.projectCode && r.projectCode===p.projectCode;
           var fileMatch=r.fileName && p.fileName && r.fileName===p.fileName;
-          return (idMatch||codeMatch) && fileMatch;
+          if(!((idMatch||codeMatch) && fileMatch)) return false;
+          // 업로드 이후 생성된 '새' 완료 리뷰인지: id(baseline 초과) 또는 생성시각(업로드 이후).
+          // baseline이 경합으로 새 id와 같아져도(빠른 통과 케이스) 생성시각으로 매칭되어 무한대기 방지.
+          var newerById=(r.reviewId||0) > (p.baselineMaxReviewId||0);
+          var t=r.createdAt?Date.parse(r.createdAt):NaN;
+          var newerByTime=!isNaN(t) && t>=started;
+          return newerById || newerByTime;
         });
         if(hit) M.removePendingReview(p.tempId);
       });
