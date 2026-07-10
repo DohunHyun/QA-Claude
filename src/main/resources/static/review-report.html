@@ -91,28 +91,28 @@
         +   '<div class="kpi warn"><div class="k-label">누적 권고</div><div class="k-value">'+warnSum+'<small> 건</small></div></div>'
         + '</div></div></section>';
 
-      // ── 검토 항목 (산출물 · 단계 · 결과 · 내용) ──
+      // ── 검토 항목 (산출물 · 단계 · 내용) ──
       html+='<section class="panel"><div class="p-head"><h2>검토 항목</h2>'
         + '<span class="more">'+arts.length+'개 산출물</span></div>'
         + '<div class="p-body flush"><table class="tbl">'
-        + '<thead><tr><th style="width:150px">산출물</th><th class="num" style="width:70px">단계</th><th class="num" style="width:70px">결과</th><th>내용</th></tr></thead><tbody>';
+        + '<thead><tr><th style="width:150px">산출물</th><th class="num" style="width:70px">단계</th><th>내용</th></tr></thead><tbody>';
       var rows='';
       arts.forEach(function(r){
         var ds=defs.filter(function(d){return d.artifact===r.artifact;});
         if(r.status==='COMPLETED' && r.passed && !ds.length){
-          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td><td class="num"><span class="badge OK">OK</span></td>'
+          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
             +'<td class="muted">필수항목·정합성 검증 통과</td></tr>';
         } else if(ds.length){
           ds.forEach(function(d){
-            rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td><td class="num">'+M.sevBadge(d.sev)+'</td>'
+            rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
               +'<td>'+e(d.desc)+'</td></tr>';
           });
         } else {
-          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td><td class="num">'+M.sevBadge(r.error>0?'개선':'권고')+'</td>'
+          rows+='<tr><td><b>'+e(r.artifact)+'</b></td><td class="num"><span class="pill g">'+e(r.stage)+'</span></td>'
             +'<td>개선 '+(r.error||0)+' · 권고 '+(r.warn||0)+' <span class="muted">(상세는 시정조치대장)</span></td></tr>';
         }
       });
-      html+= (rows || '<tr><td colspan="4" class="muted" style="text-align:center;padding:22px">해당 단계 검토 결과가 없습니다.</td></tr>');
+      html+= (rows || '<tr><td colspan="3" class="muted" style="text-align:center;padding:22px">해당 단계 검토 결과가 없습니다.</td></tr>');
       html+='</tbody></table></div></section>';
 
       document.getElementById('detail').innerHTML=html;
