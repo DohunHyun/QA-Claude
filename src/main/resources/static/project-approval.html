@@ -54,11 +54,20 @@
   <script>
     var M = window.MOCK, e = M.esc;
     var approver = (M.currentUser() || {}).name || '관리자';
+    var BACKEND = null;   // 백엔드 프로젝트 목록(있으면 사용), 없으면 목업 폴백
 
     function period(p){ return (p.start||'-') + ' ~ ' + (p.end||'-'); }
 
+    // 백엔드 ProjectResponse(id,name,code,status) → 렌더 공통 shape
+    function normProj(p){
+      return { id:p.id, code:p.code, name:p.name, status:p.status,
+        pm:p.pm||'-', start:p.start||'', end:p.end||'', stage:p.stage||'-',
+        approver:p.approver||'', approvedAt:p.approvedAt||'' };
+    }
+    function currentProjects(){ return BACKEND ? BACKEND.map(normProj) : M.allProjects(); }
+
     function render(){
-      var all = M.allProjects();
+      var all = currentProjects();
       var pending = all.filter(function(p){ return p.status === 'REQUESTED'; });
       var approved = all.filter(function(p){ return p.status === 'ACTIVE' || p.status === 'APPROVED'; });
       var rejected = all.filter(function(p){ return p.status === 'REJECTED'; });
@@ -97,24 +106,39 @@
       }).join('');
     }
 
-    // 승인/반려 처리 (이벤트 위임)
+    // 승인/반려 처리 (이벤트 위임) — 백엔드 연동 시 실제 승인 API(POST /{id}/approve) 호출
     document.querySelector('.main').addEventListener('click', function(ev){
       var ap = ev.target.closest('[data-approve]');
       var rj = ev.target.closest('[data-reject]');
       if (ap) {
         var id = ap.getAttribute('data-approve');
-        M.setProjectStatus(id, 'ACTIVE', approver);
-        render();
+        if (BACKEND) {
+          fetch('/api/projects/'+id+'/approve', { method:'POST' })
+            .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+            .then(function(){ reload(); })
+            .catch(function(){ alert('승인 처리 중 오류가 발생했습니다.'); });
+        } else {
+          M.setProjectStatus(id, 'ACTIVE', approver); render();
+        }
       } else if (rj) {
         var rid = rj.getAttribute('data-reject');
-        if (confirm('이 프로젝트를 반려하시겠습니까?')) {
-          M.setProjectStatus(rid, 'REJECTED', approver);
-          render();
+        if (!confirm('이 프로젝트를 반려하시겠습니까?')) return;
+        if (BACKEND) {
+          alert('반려는 현재 백엔드에서 지원되지 않습니다. (승인만 반영됩니다)');
+        } else {
+          M.setProjectStatus(rid, 'REJECTED', approver); render();
         }
       }
     });
 
-    render();
+    // 백엔드 우선 로드 → 실패 시 목업 폴백
+    function reload(){
+      fetch('/api/projects')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(list){ BACKEND = list||[]; render(); })
+        .catch(function(){ BACKEND = null; render(); });
+    }
+    reload();
   </script>
 </body>
 </html>
