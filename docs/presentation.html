@@ -50,45 +50,48 @@ body {
 
 /* 일관된 스케일 설정 */
 .dynamic-scale {
-  font-size: 16px !important;
+  font-size: 17px !important;
 }
 
 .dynamic-title {
-  font-size: 3rem !important;
+  font-size: 3.9rem !important;
 }
 
 .dynamic-heading {
-  font-size: 2.2rem !important;
+  font-size: 2.8rem !important;
 }
 
 .dynamic-body {
-  font-size: 1rem !important;
+  font-size: 1.55rem !important;
 }
 
 .dynamic-card-title {
-  font-size: 1.1rem !important;
+  font-size: 1.7rem !important;
 }
 
 /* 중간 해상도 조정 */
 @media (max-width: 1400px) {
   .dynamic-title {
-    font-size: 2.5rem !important;
+    font-size: 3.3rem !important;
   }
   .dynamic-heading {
-    font-size: 1.8rem !important;
+    font-size: 2.4rem !important;
+  }
+  .dynamic-body {
+    font-size: 1.4rem !important;
   }
 }
 
 /* 작은 해상도 조정 */
 @media (max-width: 1024px) {
   .dynamic-title {
-    font-size: 2rem !important;
+    font-size: 2.7rem !important;
   }
   .dynamic-heading {
-    font-size: 1.5rem !important;
+    font-size: 2rem !important;
   }
   .dynamic-body {
-    font-size: 0.95rem !important;
+    font-size: 1.25rem !important;
   }
 }
 </style>
@@ -109,16 +112,16 @@ body {
     <!-- 하단 고정 네비게이션바 -->
     <div class="h-16 border-t border-[#334155] bg-[#0E172A]/90 backdrop-blur-md px-8 flex items-center justify-between z-40 transition-colors duration-300 shrink-0" id="bottomNav">
       <div class="flex items-center gap-3">
-        <span class="text-xs font-semibold px-2 py-1 bg-slate-800 rounded text-slate-400 mono">QA-GPT 2026</span>
-        <span class="text-xs text-slate-400 hidden sm:inline">NH 해커톤 최종 발표자료</span>
+        <span class="text-base font-semibold px-2 py-1 bg-slate-800 rounded text-slate-400 mono">QA-Claude 2026</span>
+        <span class="text-base text-slate-400 hidden sm:inline">NH 해커톤 최종 발표자료</span>
       </div>
 
       <div class="flex items-center gap-4">
         <button class="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white disabled:opacity-30 disabled:hover:bg-slate-800 transition flex items-center justify-center" id="btnPrev" onclick="goSlide(-1)">
           <i class="fas fa-arrow-left"></i>
         </button>
-        <span class="text-sm font-bold tracking-widest mono text-slate-300">
-          <span id="currentPageNum" class="text-blue-400 font-extrabold text-base">1</span> / <span id="totalPageNum" class="text-slate-500">11</span>
+        <span class="text-base font-bold tracking-widest mono text-slate-300">
+          <span id="currentPageNum" class="text-blue-400 font-extrabold text-lg">1</span> / <span id="totalPageNum" class="text-slate-500">11</span>
         </span>
         <button class="w-10 h-10 rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-30 disabled:hover:bg-blue-600 transition flex items-center justify-center shadow-md shadow-blue-600/10" id="btnNext" onclick="goSlide(1)">
           <i class="fas fa-arrow-right"></i>
@@ -129,7 +132,7 @@ body {
         </button>
       </div>
 
-      <div class="text-[11px] text-slate-500 hidden md:block">
+      <div class="text-sm text-slate-500 hidden md:block">
         키보드 <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400">→</kbd> 방향키로 제어 가능
       </div>
     </div>
@@ -150,44 +153,44 @@ const DECK = [
     title: '일주일을 5분 이내로, AI-QA 혁신',
     sub: 'SI 프로젝트 산출물 자동 품질검토 & 실시간 개선 솔루션',
     html: `
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center h-full">
-        <div class="lg:col-span-7 space-y-6 lg:space-y-8 animate-fadeIn">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs md:text-sm font-extrabold tracking-wide uppercase">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center h-full">
+        <div class="lg:col-span-6 space-y-6 lg:space-y-8 animate-fadeIn">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-base md:text-base font-extrabold tracking-wide uppercase">
             <span class="w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping"></span>
             SI Quality Assurance Automation
           </div>
-          <p class="text-base md:text-xl text-slate-400 max-w-2xl leading-relaxed dynamic-body">
+          <p class="text-lg md:text-2xl text-slate-400 max-w-2xl leading-relaxed break-keep dynamic-body">
             산출물 업로드부터 최종 검수 완료까지 **5분 이내**에 완벽한 보고서와 시정조치대장을 제공합니다. 기존 6~7일을 획기적으로 단축합니다.
           </p>
           <div class="flex flex-wrap gap-3 pt-2">
-            <span class="text-xs md:text-sm px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Java 17</span>
-            <span class="text-xs md:text-sm px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Spring Boot</span>
-            <span class="text-xs md:text-sm px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Claude AI</span>
-            <span class="text-xs md:text-sm px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Agentic RAG</span>
+            <span class="text-base md:text-base px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Java 17</span>
+            <span class="text-base md:text-base px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Spring Boot</span>
+            <span class="text-base md:text-base px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Claude AI</span>
+            <span class="text-base md:text-base px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-300 mono font-semibold">Agentic RAG</span>
           </div>
         </div>
 
-        <div class="lg:col-span-5 bg-slate-900/60 p-8 lg:p-10 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-8 shadow-xl shadow-blue-500/5 relative overflow-hidden group animate-slideUp">
-          <div class="absolute -right-16 -top-16 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl group-hover:bg-blue-600/20 transition-all"></div>
-          <h3 class="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-4">🎯 QA-GPT 핵심 성과</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div class="p-5 bg-blue-900/30 rounded-xl border border-blue-500/50 hover:border-blue-400 transition-all">
-              <div class="text-4xl lg:text-5xl font-extrabold text-blue-400 tracking-tight mono">88%</div>
-              <div class="text-xs md:text-sm text-blue-200 mt-2 font-semibold">검토 시간 단축 ⚡</div>
-              <div class="text-[10px] text-slate-400 mt-1">5~6일 → 5분 이내</div>
+        <div class="lg:col-span-6 bg-slate-900/60 p-9 lg:p-12 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-10 shadow-xl shadow-blue-500/5 relative overflow-hidden group animate-slideUp">
+          <div class="absolute -right-16 -top-16 w-40 h-40 bg-blue-600/10 rounded-full blur-2xl group-hover:bg-blue-600/20 transition-all"></div>
+          <h3 class="text-lg md:text-xl font-bold text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-5">🎯 QA-GPT 핵심 성과</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="p-6 bg-blue-900/30 rounded-2xl border border-blue-500/50 hover:border-blue-400 transition-all text-center">
+              <div class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-blue-400 tracking-tight mono whitespace-nowrap" data-countup="88" data-suffix="%">88%</div>
+              <div class="text-lg md:text-xl text-blue-200 mt-4 font-bold whitespace-nowrap">검토 시간 단축 ⚡</div>
+              <div class="text-base md:text-lg text-slate-400 mt-2 whitespace-nowrap">5~6일 → 5분 이내</div>
             </div>
-            <div class="p-5 bg-amber-900/30 rounded-xl border border-amber-500/50 hover:border-amber-400 transition-all">
-              <div class="text-4xl lg:text-5xl font-extrabold text-amber-400 tracking-tight mono">1.5억</div>
-              <div class="text-xs md:text-sm text-amber-200 mt-2 font-semibold">연간 절감액 💰</div>
-              <div class="text-[10px] text-slate-400 mt-1">인력비용 기준</div>
+            <div class="p-6 bg-amber-900/30 rounded-2xl border border-amber-500/50 hover:border-amber-400 transition-all text-center">
+              <div class="text-4xl sm:text-5xl lg:text-[3.2rem] font-extrabold text-amber-400 tracking-tighter mono whitespace-nowrap" data-countup="1.5" data-decimals="1" data-suffix="억">1.5억</div>
+              <div class="text-lg md:text-xl text-amber-200 mt-4 font-bold whitespace-nowrap">연간 절감액 💰</div>
+              <div class="text-base md:text-lg text-slate-400 mt-2 whitespace-nowrap">인력비용 기준</div>
             </div>
-            <div class="p-5 bg-cyan-900/30 rounded-xl border border-cyan-500/50 hover:border-cyan-400 transition-all">
-              <div class="text-4xl lg:text-5xl font-extrabold text-cyan-400 tracking-tight mono">212</div>
-              <div class="text-xs md:text-sm text-cyan-200 mt-2 font-semibold">검증 규칙 DB 📋</div>
-              <div class="text-[10px] text-slate-400 mt-1">NH 표준 기준</div>
+            <div class="p-6 bg-cyan-900/30 rounded-2xl border border-cyan-500/50 hover:border-cyan-400 transition-all text-center">
+              <div class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-cyan-400 tracking-tight mono whitespace-nowrap" data-countup="212">212</div>
+              <div class="text-lg md:text-xl text-cyan-200 mt-4 font-bold whitespace-nowrap">검증 규칙 DB 📋</div>
+              <div class="text-base md:text-lg text-slate-400 mt-2 whitespace-nowrap">NH 표준 기준</div>
             </div>
           </div>
-          <div class="pt-4 border-t border-slate-800 text-xs md:text-sm text-slate-500 text-center">
+          <div class="pt-5 border-t border-slate-800 text-lg text-slate-500 text-center">
             NH 해커톤 2026 최종 본선
           </div>
         </div>
@@ -203,157 +206,129 @@ const DECK = [
     html: `
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
         <div class="space-y-3">
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold flex-shrink-0">1</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">현행 QA 프로세스</div>
-              <div class="text-xs text-slate-400 mt-1">IT SI 품질보증의 필요성</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">현행 문제점</div>
+              <div class="text-lg text-slate-400 mt-1">수동 검수의 한계와 과제</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold flex-shrink-0">2</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">현행 문제점</div>
-              <div class="text-xs text-slate-400 mt-1">수동 검수의 한계와 과제</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">3V 혁신 전략</div>
+              <div class="text-lg text-slate-400 mt-1">Volume, Velocity, Variety</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold flex-shrink-0">3</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">3V 혁신 전략</div>
-              <div class="text-xs text-slate-400 mt-1">Volume, Velocity, Variety</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">기술 아키텍처</div>
+              <div class="text-lg text-slate-400 mt-1">Agentic + RAG + Human-Loop</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">4</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold flex-shrink-0">4</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">기술 아키텍처</div>
-              <div class="text-xs text-slate-400 mt-1">Agentic + RAG + Human-Loop</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">검증 기준</div>
+              <div class="text-lg text-slate-400 mt-1">212개 규칙셋 DB</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">5</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-blue-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold flex-shrink-0">5</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">검증 기준</div>
-              <div class="text-xs text-slate-400 mt-1">212개 규칙셋 DB</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">동작 절차</div>
+              <div class="text-lg text-slate-400 mt-1">4단계 프로세스</div>
             </div>
           </div>
         </div>
         <div class="space-y-3">
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-sm font-bold flex-shrink-0">6</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-2xl font-bold flex-shrink-0">6</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">동작 절차</div>
-              <div class="text-xs text-slate-400 mt-1">4단계 프로세스</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">솔루션 차별성</div>
+              <div class="text-lg text-slate-400 mt-1">기존 대비 우위점</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-sm font-bold flex-shrink-0">7</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-2xl font-bold flex-shrink-0">7</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">솔루션 차별성</div>
-              <div class="text-xs text-slate-400 mt-1">기존 대비 우위점</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">기대효과 & ROI</div>
+              <div class="text-lg text-slate-400 mt-1">정량적 성과 입증</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-sm font-bold flex-shrink-0">8</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-2xl font-bold flex-shrink-0">8</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">기대효과 & ROI</div>
-              <div class="text-xs text-slate-400 mt-1">정량적 성과 입증</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">확장 및 비즈니스 모델</div>
+              <div class="text-lg text-slate-400 mt-1">사내 → 대외 PaaS</div>
             </div>
           </div>
-          <div class="flex items-start gap-4 p-4 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
-            <span class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-sm font-bold flex-shrink-0">9</span>
+          <div class="flex items-start gap-4 p-5 bg-slate-900/40 rounded-lg border border-slate-800 hover:border-cyan-500/50 transition-all">
+            <span class="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-2xl font-bold flex-shrink-0">9</span>
             <div>
-              <div class="text-sm font-bold text-slate-200">확장 및 비즈니스 모델</div>
-              <div class="text-xs text-slate-400 mt-1">사내 → 대외 PaaS</div>
+              <div class="text-xl md:text-2xl font-bold text-slate-200 leading-snug">AI 활용 방향</div>
+              <div class="text-lg text-slate-400 mt-1">해커톤이 던지는 질문</div>
             </div>
           </div>
         </div>
       </div>
     `
   },
-  // 슬라이드 3: 현행 QA 프로세스
-  {
-    toc: '현행 QA 프로세스',
-    eyebrow: '01 — BACKGROUND',
-    title: '현행 IT SI 품질보증의 핵심 역할',
-    sub: '초기 단계 결함 제거가 프로젝트 비용 절감의 핵심',
-    html: `
-      <div class="space-y-6 lg:space-y-8 animate-fadeIn">
-        <div class="bg-blue-900/15 border-l-4 border-blue-500 p-6 rounded-r-xl">
-          <p class="text-sm md:text-base leading-relaxed text-blue-300 dynamic-body">
-            QA는 분석·설계·구현 등 모든 개발 전반의 이정표이자 품질 방어선입니다. 초기 기획의 불일치를 잡아내지 못하면 대형 결함으로 운영 중 장애를 유발합니다.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 lg:gap-6">
-          <div class="bg-slate-800/40 border border-slate-700/50 p-6 rounded-xl hover:border-blue-500/50 transition-all">
-            <h4 class="font-bold text-slate-200 text-base md:text-lg mb-3">정합성 검증</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">문서 간 누락, 불일치 확인 및 표준 지침 준수 여부 정밀 검증</p>
-          </div>
-          <div class="bg-slate-800/40 border border-slate-700/50 p-6 rounded-xl hover:border-amber-500/50 transition-all">
-            <h4 class="font-bold text-slate-200 text-base md:text-lg mb-3">결함 분류</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">위반 사항을 등급별 분류 후 조치 통지 발송</p>
-          </div>
-          <div class="bg-slate-800/40 border border-slate-700/50 p-6 rounded-xl hover:border-cyan-500/50 transition-all">
-            <h4 class="font-bold text-slate-200 text-base md:text-lg mb-3">추적 관리</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">PM 수정 여부 추적 및 조치 결과 확인</p>
-          </div>
-          <div class="bg-slate-800/40 border border-slate-700/50 p-6 rounded-xl hover:border-emerald-500/50 transition-all">
-            <h4 class="font-bold text-slate-200 text-base md:text-lg mb-3">공식 승인</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">단계 전환 시 품질 보증 문서 발행</p>
-          </div>
-        </div>
-
-        <div class="bg-red-950/30 border border-red-500/40 p-6 rounded-xl text-center flex flex-col justify-center">
-          <p class="text-base md:text-lg text-red-400 font-bold">⚡ 설계 단계 결함 미발견 = 후속 단계 비용 10배 증가</p>
-          <p class="text-xs md:text-sm text-red-300 mt-2">초기 결함 제거가 전체 프로젝트 성패의 핵심입니다</p>
-        </div>
-      </div>
-    `
-  },
-  // 슬라이드 4: 현행 문제점
+  // 슬라이드 3: 현행 문제점
   {
     toc: '현행 문제점',
-    eyebrow: '02 — PROBLEM STATE',
+    eyebrow: '01 — PROBLEM STATE',
     title: '수작업 QA의 4가지 구조적 한계',
     sub: '기존 방식에서 발생하는 주요 문제점',
     html: `
-      <div class="space-y-4 animate-fadeIn">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-          <div class="bg-slate-900/60 p-6 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all">
-            <div class="text-xs text-red-400 font-bold uppercase tracking-widest mb-3">01. 시간 지연</div>
-            <h4 class="text-lg font-bold text-slate-100 mb-3">6~7일 소요</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">개발이 지체되고 결함이 누적되어 재작업 위기 발생</p>
+      <div class="space-y-6 animate-fadeIn">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
+          <div class="relative overflow-hidden bg-slate-900/60 p-7 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all min-h-[280px] flex flex-col">
+            <div class="absolute -right-3 -bottom-4 text-8xl font-black text-red-500/10 mono select-none">01</div>
+            <div class="text-xl text-red-300 font-extrabold uppercase tracking-wide mb-4">시간 지연</div>
+            <div class="relative z-10">
+              <h4 class="text-3xl font-black text-white mb-3">6~7일 소요</h4>
+              <p class="text-lg text-slate-400 leading-relaxed">개발이 지체되고 결함이 누적되어 재작업 위기 발생</p>
+            </div>
           </div>
 
-          <div class="bg-slate-900/60 p-6 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all">
-            <div class="text-xs text-red-400 font-bold uppercase tracking-widest mb-3">02. 수동 한계</div>
-            <h4 class="text-lg font-bold text-slate-100 mb-3">전수검수 불가</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">수만 줄 규모 문서를 수작업으로 대조 불가</p>
+          <div class="relative overflow-hidden bg-slate-900/60 p-7 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all min-h-[280px] flex flex-col">
+            <div class="absolute -right-3 -bottom-4 text-8xl font-black text-red-500/10 mono select-none">02</div>
+            <div class="text-xl text-red-300 font-extrabold uppercase tracking-wide mb-4">수동 한계</div>
+            <div class="relative z-10">
+              <h4 class="text-3xl font-black text-white mb-3">전수검수 불가</h4>
+              <p class="text-lg text-slate-400 leading-relaxed">수만 줄 규모 문서를 수작업으로 대조 불가</p>
+            </div>
           </div>
 
-          <div class="bg-slate-900/60 p-6 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all">
-            <div class="text-xs text-red-400 font-bold uppercase tracking-widest mb-3">03. 품질 편차</div>
-            <h4 class="text-lg font-bold text-slate-100 mb-3">역량 격차</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">PM의 경험에 따라 검증 결과가 극심하게 달라짐</p>
+          <div class="relative overflow-hidden bg-slate-900/60 p-7 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all min-h-[280px] flex flex-col">
+            <div class="absolute -right-3 -bottom-4 text-8xl font-black text-red-500/10 mono select-none">03</div>
+            <div class="text-xl text-red-300 font-extrabold uppercase tracking-wide mb-4">품질 편차</div>
+            <div class="relative z-10">
+              <h4 class="text-3xl font-black text-white mb-3">역량 격차</h4>
+              <p class="text-lg text-slate-400 leading-relaxed">PM의 경험에 따라 검증 결과가 극심하게 달라짐</p>
+            </div>
           </div>
 
-          <div class="bg-slate-900/60 p-6 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all">
-            <div class="text-xs text-red-400 font-bold uppercase tracking-widest mb-3">04. 비용 폭증</div>
-            <h4 class="text-lg font-bold text-slate-100 mb-3">결함 누출</h4>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed">설계 단계 결함 미발견 → 후속 단계 비용 폭증</p>
+          <div class="relative overflow-hidden bg-slate-900/60 p-7 rounded-2xl border-t-4 border-red-500 border-x border-b border-slate-800 shadow-lg hover:shadow-red-500/10 transition-all min-h-[280px] flex flex-col">
+            <div class="absolute -right-3 -bottom-4 text-8xl font-black text-red-500/10 mono select-none">04</div>
+            <div class="text-xl text-red-300 font-extrabold uppercase tracking-wide mb-4">비용 폭증</div>
+            <div class="relative z-10">
+              <h4 class="text-3xl font-black text-white mb-3">결함 누출</h4>
+              <p class="text-lg text-slate-400 leading-relaxed">설계 단계 결함 미발견 → 후속 단계 비용 폭증</p>
+            </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-800">
-            <div class="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2">자원 문제</div>
-            <div class="text-sm text-slate-300 leading-relaxed">수만 줄 규모의 산출물을 수작업으로 검수하기에는 인력 리소스의 한계</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="bg-slate-900/60 p-6 rounded-xl border-l-4 border-amber-500/60 border-y border-r border-slate-800">
+            <div class="text-base font-bold text-amber-400 uppercase tracking-widest mb-2">자원 문제</div>
+            <div class="text-lg text-slate-300 leading-relaxed">수만 줄 규모의 산출물을 수작업으로 검수하기에는 인력 리소스의 한계</div>
           </div>
-          <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-800">
-            <div class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-2">지원 방식</div>
-            <div class="text-sm text-slate-300 leading-relaxed">PM 또는 당사 QA 인력의 검수 일정에 따른 병렬 처리 한계</div>
+          <div class="bg-slate-900/60 p-6 rounded-xl border-l-4 border-cyan-500/60 border-y border-r border-slate-800">
+            <div class="text-base font-bold text-cyan-400 uppercase tracking-widest mb-2">지원 방식</div>
+            <div class="text-lg text-slate-300 leading-relaxed">PM 또는 당사 QA 인력의 검수 일정에 따른 병렬 처리 한계</div>
           </div>
         </div>
       </div>
@@ -362,50 +337,50 @@ const DECK = [
   // 슬라이드 5: 3V 혁신
   {
     toc: '3V 혁신 전략',
-    eyebrow: '03 — THE CORE VALUE',
+    eyebrow: '02 — THE CORE VALUE',
     title: '3V(Volume, Velocity, Variety) 혁신',
     sub: '빅데이터와 AI 에이전트를 조화시킨 차세대 품질 검토',
     html: `
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 animate-fadeIn">
 
-        <div class="bg-gradient-to-b from-blue-900/30 to-slate-900 p-8 rounded-2xl border border-blue-500/30 relative overflow-hidden flex flex-col justify-between h-full group hover:border-blue-500/60 transition-all shadow-xl shadow-blue-500/5">
+        <div class="bg-gradient-to-b from-blue-900/30 to-slate-900 p-8 rounded-2xl border border-blue-500/30 relative overflow-hidden flex flex-col justify-between h-full min-h-[460px] group hover:border-blue-500/60 transition-all shadow-xl shadow-blue-500/5">
           <div class="absolute right-4 top-4 text-5xl font-extrabold text-blue-500/10 group-hover:text-blue-500/25 transition-all mono">01</div>
           <div>
-            <h4 class="text-2xl font-bold text-white mb-2">VOLUME <span class="text-lg font-normal text-blue-400">(양)</span></h4>
-            <p class="text-xs md:text-sm text-slate-400 tracking-wider uppercase font-bold text-blue-400 mb-4">대규모 규칙 데이터베이스</p>
-            <p class="text-xs md:text-sm lg:text-base text-slate-300 leading-relaxed">
+            <h4 class="text-4xl font-bold text-white mb-2">VOLUME <span class="text-xl font-normal text-blue-400">(양)</span></h4>
+            <p class="text-lg md:text-xl text-slate-400 tracking-wider uppercase font-bold text-blue-400 mb-4">대규모 규칙 데이터베이스</p>
+            <p class="text-xl md:text-2xl text-slate-300 leading-relaxed">
               <strong>212개 NH 표준 검증 규칙</strong>으로 11종 산출물 전수를 빈틈없이 대조하여 검수율을 <strong>100%</strong>로 달성합니다.
             </p>
           </div>
-          <div class="mt-8 pt-5 border-t border-slate-800 text-xs md:text-sm text-slate-400 text-center">
+          <div class="mt-8 pt-5 border-t border-slate-800 text-xl text-slate-400 text-center">
             <span class="font-extrabold text-blue-400">212개 규칙 완전 적용</span>
           </div>
         </div>
 
-        <div class="bg-gradient-to-b from-amber-900/20 to-slate-900 p-8 rounded-2xl border border-amber-500/30 relative overflow-hidden flex flex-col justify-between h-full group hover:border-amber-500/60 transition-all shadow-xl shadow-amber-500/5">
+        <div class="bg-gradient-to-b from-amber-900/20 to-slate-900 p-8 rounded-2xl border border-amber-500/30 relative overflow-hidden flex flex-col justify-between h-full min-h-[460px] group hover:border-amber-500/60 transition-all shadow-xl shadow-amber-500/5">
           <div class="absolute right-4 top-4 text-5xl font-extrabold text-amber-500/10 group-hover:text-amber-500/25 transition-all mono">02</div>
           <div>
-            <h4 class="text-2xl font-bold text-white mb-2">VELOCITY <span class="text-lg font-normal text-amber-400">(속도)</span></h4>
-            <p class="text-xs md:text-sm text-slate-400 tracking-wider uppercase font-bold text-amber-400 mb-4">리얼타임 초고속 처리</p>
-            <p class="text-xs md:text-sm lg:text-base text-slate-300 leading-relaxed">
+            <h4 class="text-4xl font-bold text-white mb-2">VELOCITY <span class="text-xl font-normal text-amber-400">(속도)</span></h4>
+            <p class="text-lg md:text-xl text-slate-400 tracking-wider uppercase font-bold text-amber-400 mb-4">리얼타임 초고속 처리</p>
+            <p class="text-xl md:text-2xl text-slate-300 leading-relaxed">
               산출물 업로드 후 <strong>5분 이내 전체 검증 및 보고서 생성</strong>으로 기존 6~7일 프로세스를 획기적으로 단축합니다.
             </p>
           </div>
-          <div class="mt-8 pt-5 border-t border-slate-800 text-xs md:text-sm text-slate-400 text-center">
+          <div class="mt-8 pt-5 border-t border-slate-800 text-xl text-slate-400 text-center">
             <span class="font-extrabold text-amber-400">6~7일 → 5분 이내</span>
           </div>
         </div>
 
-        <div class="bg-gradient-to-b from-cyan-900/20 to-slate-900 p-8 rounded-2xl border border-cyan-500/30 relative overflow-hidden flex flex-col justify-between h-full group hover:border-cyan-500/60 transition-all shadow-xl shadow-cyan-500/5">
+        <div class="bg-gradient-to-b from-cyan-900/20 to-slate-900 p-8 rounded-2xl border border-cyan-500/30 relative overflow-hidden flex flex-col justify-between h-full min-h-[460px] group hover:border-cyan-500/60 transition-all shadow-xl shadow-cyan-500/5">
           <div class="absolute right-4 top-4 text-5xl font-extrabold text-cyan-500/10 group-hover:text-cyan-500/25 transition-all mono">03</div>
           <div>
-            <h4 class="text-2xl font-bold text-white mb-2">VARIETY <span class="text-lg font-normal text-cyan-400">(다양성)</span></h4>
-            <p class="text-xs md:text-sm text-slate-400 tracking-wider uppercase font-bold text-cyan-400 mb-4">다층 AI 기반 검증</p>
-            <p class="text-xs md:text-sm lg:text-base text-slate-300 leading-relaxed">
+            <h4 class="text-4xl font-bold text-white mb-2">VARIETY <span class="text-xl font-normal text-cyan-400">(다양성)</span></h4>
+            <p class="text-lg md:text-xl text-slate-400 tracking-wider uppercase font-bold text-cyan-400 mb-4">다층 AI 기반 검증</p>
+            <p class="text-xl md:text-2xl text-slate-300 leading-relaxed">
               AI 에이전트 + 규칙 데이터베이스 + 휴먼 검증으로 <strong>3단계 다차원 검증</strong>을 통해 완벽한 품질 보증을 제공합니다.
             </p>
           </div>
-          <div class="mt-8 pt-5 border-t border-slate-800 text-xs md:text-sm text-slate-400 text-center">
+          <div class="mt-8 pt-5 border-t border-slate-800 text-xl text-slate-400 text-center">
             <span class="font-extrabold text-cyan-400">AI + 규칙 + 휴먼</span>
           </div>
         </div>
@@ -416,20 +391,20 @@ const DECK = [
   // 슬라이드 6: 기술 아키텍처
   {
     toc: '기술 아키텍처',
-    eyebrow: '04 — TECHNOLOGY STACK',
+    eyebrow: '03 — TECHNOLOGY STACK',
     title: 'AI 자동화 + 규칙 데이터베이스 + 전문가 검수',
     sub: '신뢰성과 정확성을 보장하는 3단계 품질관리 구조',
     html: `
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 animate-fadeIn">
 
-        <div class="bg-slate-900/60 p-6 rounded-xl border border-blue-500/40 hover:border-blue-500/60 transition-all flex flex-col justify-between">
+        <div class="bg-slate-900/60 p-8 rounded-xl border border-blue-500/40 hover:border-blue-500/60 transition-all flex flex-col justify-between min-h-[460px]">
           <div>
             <div class="mb-3">
-              <h4 class="font-bold text-slate-100 text-base md:text-lg mb-1">1단계. AI 자동 검증</h4>
-              <span class="text-[10px] font-mono bg-blue-600/20 text-blue-300 px-2 py-1 rounded">Agentic Workflow</span>
+              <h4 class="font-extrabold text-white text-3xl md:text-4xl mb-2 tracking-tight">AI 자동 검증</h4>
+              <span class="text-sm font-mono bg-blue-600/20 text-blue-300 px-2 py-1 rounded">Agentic Workflow</span>
             </div>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed mb-4">4가지 특화된 검증 에이전트가 각각의 영역에서 동시 병렬 검증합니다.</p>
-            <ul class="space-y-2 text-xs md:text-sm text-slate-300">
+            <p class="text-lg md:text-xl text-slate-400 leading-relaxed mb-4">4가지 특화된 검증 에이전트가 각각의 영역에서 동시 병렬 검증합니다.</p>
+            <ul class="space-y-2 text-lg md:text-xl text-slate-300">
               <li>✓ 표준 규격 검증 에이전트</li>
               <li>✓ 요구사항 추적 에이전트</li>
               <li>✓ 문서 간 일관성 에이전트</li>
@@ -438,34 +413,34 @@ const DECK = [
           </div>
         </div>
 
-        <div class="bg-slate-900/60 p-6 rounded-xl border border-cyan-500/40 hover:border-cyan-500/60 transition-all flex flex-col justify-between">
+        <div class="bg-slate-900/60 p-8 rounded-xl border border-cyan-500/40 hover:border-cyan-500/60 transition-all flex flex-col justify-between min-h-[460px]">
           <div>
             <div class="mb-3">
-              <h4 class="font-bold text-slate-100 text-base md:text-lg mb-1">2단계. 규칙 기반 검증</h4>
-              <span class="text-[10px] font-mono bg-cyan-600/20 text-cyan-300 px-2 py-1 rounded">Deterministic RAG</span>
+              <h4 class="font-extrabold text-white text-3xl md:text-4xl mb-2 tracking-tight">규칙 기반 검증</h4>
+              <span class="text-sm font-mono bg-cyan-600/20 text-cyan-300 px-2 py-1 rounded">Deterministic RAG</span>
             </div>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed mb-4"><strong>212개 NH 표준 규칙</strong>을 데이터베이스화하여 편차 없는 일관된 판정을 보장합니다.</p>
-            <div class="space-y-2 text-xs md:text-sm text-slate-300">
+            <p class="text-lg md:text-xl text-slate-400 leading-relaxed mb-4"><strong>212개 NH 표준 규칙</strong>을 데이터베이스화하여 편차 없는 일관된 판정을 보장합니다.</p>
+            <div class="space-y-2 text-lg md:text-xl text-slate-300">
               <div class="p-2.5 bg-slate-800/50 rounded-lg border border-slate-700/60">
-                <span class="text-cyan-400 font-bold block text-[10px] mb-1">📍 근거 명시</span>
+                <span class="text-cyan-400 font-bold block text-base mb-1">📍 근거 명시</span>
                 위반 사항의 셀 좌표와 규칙 ID 의무 기재
               </div>
               <div class="p-2.5 bg-slate-800/50 rounded-lg border border-slate-700/60">
-                <span class="text-cyan-400 font-bold block text-[10px] mb-1">🔁 재현성 100%</span>
+                <span class="text-cyan-400 font-bold block text-base mb-1">🔁 재현성 100%</span>
                 동일 입력 시 매번 동일한 결과 보증
               </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-slate-900/60 p-6 rounded-xl border border-emerald-500/40 hover:border-emerald-500/60 transition-all flex flex-col justify-between bg-gradient-to-b from-slate-900 to-emerald-950/20">
+        <div class="bg-slate-900/60 p-8 rounded-xl border border-emerald-500/40 hover:border-emerald-500/60 transition-all flex flex-col justify-between min-h-[460px] bg-gradient-to-b from-slate-900 to-emerald-950/20">
           <div>
             <div class="mb-3">
-              <h4 class="font-bold text-slate-100 text-base md:text-lg mb-1">3단계. 전문가 최종 검수</h4>
-              <span class="text-[10px] font-mono bg-emerald-600/20 text-emerald-300 px-2 py-1 rounded">Human-in-the-Loop</span>
+              <h4 class="font-extrabold text-white text-3xl md:text-4xl mb-2 tracking-tight">전문가 최종 검수</h4>
+              <span class="text-sm font-mono bg-emerald-600/20 text-emerald-300 px-2 py-1 rounded">Human-in-the-Loop</span>
             </div>
-            <p class="text-xs md:text-sm text-slate-400 leading-relaxed mb-4">AI는 초안 담당, <strong>인간이 최종 의사결정</strong>을 담당하는 협업 체계입니다.</p>
-            <div class="space-y-2 text-xs md:text-sm text-slate-300">
+            <p class="text-lg md:text-xl text-slate-400 leading-relaxed mb-4">AI는 초안 담당, <strong>인간이 최종 의사결정</strong>을 담당하는 협업 체계입니다.</p>
+            <div class="space-y-2 text-lg md:text-xl text-slate-300">
               <div class="bg-slate-800/40 p-2 rounded-lg border border-slate-700/80">
                 🤖 AI 자동 초안 생성 (5분 이내)
               </div>
@@ -485,65 +460,65 @@ const DECK = [
   // 슬라이드 7: 검증 기준
   {
     toc: '검증 기준',
-    eyebrow: '05 — VERIFICATION CRITERIA',
+    eyebrow: '04 — VERIFICATION CRITERIA',
     title: 'NH 표준 11종 산출물 검증 데이터베이스',
     sub: '체계적인 212개 규칙으로 구성된 검출 기준',
     html: `
-      <div class="space-y-6 animate-fadeIn">
+      <div class="space-y-5 animate-fadeIn">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 text-center">
-          <div class="bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/30 p-4 rounded-xl">
-            <span class="block text-xl md:text-2xl font-bold text-blue-400 mono">관리 (3종)</span>
-            <span class="text-xs md:text-sm text-slate-400 mt-2 block">수행계획·테일러링·추적표</span>
+          <div class="bg-gradient-to-br from-blue-500/15 to-blue-600/5 border border-blue-500/40 p-5 rounded-xl">
+            <span class="block text-3xl md:text-4xl font-black text-blue-400 mono">관리 (3종)</span>
+            <span class="text-lg text-slate-300 mt-2 block">수행계획·테일러링·추적표</span>
           </div>
-          <div class="bg-gradient-to-r from-cyan-500/10 to-cyan-600/5 border border-cyan-500/30 p-4 rounded-xl">
-            <span class="block text-xl md:text-2xl font-bold text-cyan-400 mono">분석 (4종)</span>
-            <span class="text-xs md:text-sm text-slate-400 mt-2 block">요구사항·프로세스·인터페이스</span>
+          <div class="bg-gradient-to-br from-cyan-500/15 to-cyan-600/5 border border-cyan-500/40 p-5 rounded-xl">
+            <span class="block text-3xl md:text-4xl font-black text-cyan-400 mono">분석 (4종)</span>
+            <span class="text-lg text-slate-300 mt-2 block">요구사항·프로세스·인터페이스</span>
           </div>
-          <div class="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/30 p-4 rounded-xl">
-            <span class="block text-xl md:text-2xl font-bold text-amber-400 mono">설계 (4종)</span>
-            <span class="text-xs md:text-sm text-slate-400 mt-2 block">UI·프로그램·인터페이스·배치</span>
+          <div class="bg-gradient-to-br from-amber-500/15 to-amber-600/5 border border-amber-500/40 p-5 rounded-xl">
+            <span class="block text-3xl md:text-4xl font-black text-amber-400 mono">설계 (4종)</span>
+            <span class="text-lg text-slate-300 mt-2 block">UI·프로그램·인터페이스·배치</span>
           </div>
         </div>
 
-        <div class="bg-slate-900/60 p-6 rounded-xl border border-slate-800 overflow-x-auto">
-          <table class="w-full text-left text-xs md:text-sm text-slate-300 min-w-[700px]">
+        <div class="rounded-2xl border border-slate-700 overflow-hidden shadow-xl shadow-black/20">
+          <table class="w-full text-left text-lg md:text-xl text-slate-200 min-w-[700px]">
             <thead>
-              <tr class="border-b border-slate-800 text-slate-400 font-bold">
-                <th class="py-3 px-4">산출물</th>
-                <th class="py-3 px-4 text-center">검사항목</th>
-                <th class="py-3 px-4 text-right">자동화</th>
+              <tr class="bg-slate-700 text-white uppercase tracking-wide">
+                <th class="py-3 px-5 font-extrabold">산출물</th>
+                <th class="py-3 px-5 text-center font-extrabold">검사항목</th>
+                <th class="py-3 px-5 text-right font-extrabold">자동화율</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-800/60">
-              <tr class="hover:bg-slate-800/20">
-                <td class="py-3 px-4 font-bold text-blue-400">요구사항 추적표</td>
-                <td class="py-3 px-4 text-center font-bold mono">21개</td>
-                <td class="py-3 px-4 text-right"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-[11px] font-bold">95%</span></td>
+            <tbody>
+              <tr class="bg-slate-900/70 border-t border-slate-800">
+                <td class="py-3 px-5 font-bold text-blue-300">요구사항 추적표</td>
+                <td class="py-3 px-5 text-center font-bold mono">21개</td>
+                <td class="py-3 px-5 text-right"><span class="bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg text-base font-extrabold">95%</span></td>
               </tr>
-              <tr class="hover:bg-slate-800/20">
-                <td class="py-3 px-4 font-bold text-cyan-400">요구사항 정의서</td>
-                <td class="py-3 px-4 text-center font-bold mono">33개</td>
-                <td class="py-3 px-4 text-right"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-[11px] font-bold">85%</span></td>
+              <tr class="bg-slate-800/40 border-t border-slate-800">
+                <td class="py-3 px-5 font-bold text-cyan-300">요구사항 정의서</td>
+                <td class="py-3 px-5 text-center font-bold mono">33개</td>
+                <td class="py-3 px-5 text-right"><span class="bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg text-base font-extrabold">85%</span></td>
               </tr>
-              <tr class="hover:bg-slate-800/20">
-                <td class="py-3 px-4 font-bold text-cyan-400">인터페이스 정의서</td>
-                <td class="py-3 px-4 text-center font-bold mono">24개</td>
-                <td class="py-3 px-4 text-right"><span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded text-[11px] font-bold">90%</span></td>
+              <tr class="bg-slate-900/70 border-t border-slate-800">
+                <td class="py-3 px-5 font-bold text-cyan-300">인터페이스 정의서</td>
+                <td class="py-3 px-5 text-center font-bold mono">24개</td>
+                <td class="py-3 px-5 text-right"><span class="bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg text-base font-extrabold">90%</span></td>
               </tr>
-              <tr class="hover:bg-slate-800/20">
-                <td class="py-3 px-4 font-bold text-slate-400 text-center" colspan="3">외 8종 산출물 ...</td>
+              <tr class="bg-slate-800/40 border-t border-slate-800">
+                <td class="py-2.5 px-5 font-semibold text-slate-400 text-center" colspan="3">외 8종 산출물 …</td>
               </tr>
-              <tr style="background: rgba(59, 130, 246, 0.1);">
-                <td class="py-3 px-4 font-bold text-blue-400">합계</td>
-                <td class="py-3 px-4 text-center font-bold mono">212개</td>
-                <td class="py-3 px-4 text-right"><span class="text-emerald-400 font-bold text-sm">185개 자동화</span></td>
+              <tr class="bg-blue-600/25 border-t-2 border-blue-500/50">
+                <td class="py-4 px-5 font-black text-white text-xl">합계</td>
+                <td class="py-4 px-5 text-center font-black mono text-white text-xl">212개</td>
+                <td class="py-4 px-5 text-right"><span class="text-emerald-300 font-black text-xl">185개 자동화</span></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="text-center text-[11px] md:text-xs text-slate-500">
-          총 11종 산출물 212개 검사항목 중 185개 항목은 완전 자동 정밀 패턴 매칭 엔진 적용
+        <div class="text-center text-base md:text-lg text-slate-400">
+          총 <strong class="text-slate-200">11종 산출물 212개</strong> 검사항목 중 <strong class="text-emerald-300">185개(87%)</strong>는 완전 자동 정밀 패턴 매칭 엔진 적용
         </div>
       </div>
     `
@@ -551,65 +526,64 @@ const DECK = [
   // 슬라이드 8: 동작 절차
   {
     toc: '동작 절차',
-    eyebrow: '06 — PROCESS WORKFLOW',
+    eyebrow: '05 — PROCESS WORKFLOW',
     title: '올려놓으면 즉시 생성되는 완벽한 아웃풋',
     sub: '4단계 고속 자동화 프로세스',
     html: `
-      <div class="space-y-6 animate-fadeIn">
-        <div class="flex flex-col md:flex-row gap-3">
-          <div class="flex-1 bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex items-center gap-4">
-            <span class="w-9 h-9 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold mono text-sm">01</span>
+      <div class="space-y-8 animate-fadeIn">
+        <div class="flex flex-col md:flex-row items-stretch gap-4">
+          <div class="flex-1 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 flex items-center gap-5">
+            <span class="w-14 h-14 rounded-full bg-blue-600/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-black mono text-2xl shrink-0">01</span>
             <div>
-              <h5 class="text-xs md:text-sm font-bold text-slate-100">프로젝트 등록</h5>
-              <p class="text-[11px] md:text-xs text-slate-400 mt-1">PM명, 기준 표준 입력</p>
+              <h5 class="text-xl md:text-2xl font-bold text-slate-100">프로젝트 등록</h5>
+              <p class="text-lg text-slate-400 mt-1">PM명, 기준 표준 입력</p>
             </div>
           </div>
-          <div class="flex-1 bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex items-center gap-4">
-            <span class="w-9 h-9 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold mono text-sm">02</span>
+          <div class="flex-1 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 flex items-center gap-5">
+            <span class="w-14 h-14 rounded-full bg-blue-600/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-black mono text-2xl shrink-0">02</span>
             <div>
-              <h5 class="text-xs md:text-sm font-bold text-slate-100">산출물 업로드</h5>
-              <p class="text-[11px] md:text-xs text-slate-400 mt-1">드래그앤드롭</p>
+              <h5 class="text-xl md:text-2xl font-bold text-slate-100">산출물 업로드</h5>
+              <p class="text-lg text-slate-400 mt-1">드래그앤드롭</p>
             </div>
           </div>
-          <div class="flex-1 bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex items-center gap-4">
-            <span class="w-9 h-9 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold mono text-sm">03</span>
+          <div class="flex-1 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 flex items-center gap-5">
+            <span class="w-14 h-14 rounded-full bg-blue-600/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-black mono text-2xl shrink-0">03</span>
             <div>
-              <h5 class="text-xs md:text-sm font-bold text-slate-100">AI 검증 & 보고서</h5>
-              <p class="text-[11px] md:text-xs text-slate-400 mt-1">5분 이내</p>
+              <h5 class="text-xl md:text-2xl font-bold text-slate-100">AI 검증 & 보고서</h5>
+              <p class="text-lg text-blue-300 font-semibold mt-1">⚡ 5분 이내</p>
             </div>
           </div>
-          <div class="flex-1 bg-slate-900/60 p-5 rounded-xl border border-slate-800 flex items-center gap-4 bg-gradient-to-r from-slate-900 to-emerald-950/20">
-            <span class="w-9 h-9 rounded-full bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold mono text-sm">04</span>
+          <div class="flex-1 bg-gradient-to-r from-slate-900 to-emerald-950/30 p-6 rounded-2xl border border-emerald-800/40 flex items-center gap-5">
+            <span class="w-14 h-14 rounded-full bg-emerald-600/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black mono text-2xl shrink-0">04</span>
             <div>
-              <h5 class="text-xs md:text-sm font-bold text-slate-100">결과 수령</h5>
-              <p class="text-[11px] md:text-xs text-slate-400 mt-1">3+1종 문서</p>
+              <h5 class="text-xl md:text-2xl font-bold text-slate-100">결과 수령</h5>
+              <p class="text-lg text-emerald-300 font-semibold mt-1">3+1종 문서</p>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 lg:gap-6">
-          <div class="p-5 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col justify-between h-full hover:border-blue-500/50 transition-all">
-            <div>
-              <h5 class="text-sm md:text-base font-bold text-slate-200 mb-2">OUTPUT 1: 품질검토 결과서</h5>
-              <p class="text-xs text-slate-400 leading-relaxed">Rule ID, 심각도, 위반 근거 셀 좌표 및 원인 분석</p>
+        <div>
+          <div class="text-lg font-extrabold text-slate-400 uppercase tracking-widest mb-4">AI가 자동 생성하는 3+1종 산출물</div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-5 lg:gap-6">
+            <div class="p-6 bg-slate-900/60 rounded-2xl border-t-4 border-blue-500 border-x border-b border-slate-800 flex flex-col min-h-[230px] hover:border-blue-400 transition-all">
+              <div class="text-base font-black text-blue-400 mono mb-3">OUTPUT 1</div>
+              <h5 class="text-xl md:text-2xl font-bold text-white mb-3">품질검토 결과서</h5>
+              <p class="text-lg text-slate-400 leading-relaxed">Rule ID, 심각도, 위반 근거 셀 좌표 및 원인 분석</p>
             </div>
-          </div>
-          <div class="p-5 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col justify-between h-full hover:border-cyan-500/50 transition-all">
-            <div>
-              <h5 class="text-sm md:text-base font-bold text-slate-200 mb-2">OUTPUT 2: AI 개선 산출물</h5>
-              <p class="text-xs text-slate-400 leading-relaxed">규격에 맞게 자동 보정된 교체용 파일</p>
+            <div class="p-6 bg-slate-900/60 rounded-2xl border-t-4 border-cyan-500 border-x border-b border-slate-800 flex flex-col min-h-[230px] hover:border-cyan-400 transition-all">
+              <div class="text-base font-black text-cyan-400 mono mb-3">OUTPUT 2</div>
+              <h5 class="text-xl md:text-2xl font-bold text-white mb-3">AI 개선 산출물</h5>
+              <p class="text-lg text-slate-400 leading-relaxed">규격에 맞게 자동 보정된 교체용 파일</p>
             </div>
-          </div>
-          <div class="p-5 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col justify-between h-full hover:border-amber-500/50 transition-all">
-            <div>
-              <h5 class="text-sm md:text-base font-bold text-slate-200 mb-2">OUTPUT 3: 시정조치 대장</h5>
-              <p class="text-xs text-slate-400 leading-relaxed">지적·조치·이력 자동 연동 추적 엑셀</p>
+            <div class="p-6 bg-slate-900/60 rounded-2xl border-t-4 border-amber-500 border-x border-b border-slate-800 flex flex-col min-h-[230px] hover:border-amber-400 transition-all">
+              <div class="text-base font-black text-amber-400 mono mb-3">OUTPUT 3</div>
+              <h5 class="text-xl md:text-2xl font-bold text-white mb-3">시정조치 대장</h5>
+              <p class="text-lg text-slate-400 leading-relaxed">지적·조치·이력 자동 연동 추적 엑셀</p>
             </div>
-          </div>
-          <div class="p-5 bg-emerald-950/25 rounded-xl border border-emerald-900/40 flex flex-col justify-between h-full hover:border-emerald-800 transition-all">
-            <div>
-              <h5 class="text-sm md:text-base font-bold text-slate-100 mb-2">OUTPUT 4: 종합 결과서 (QA 서명)</h5>
-              <p class="text-xs text-slate-300 leading-relaxed">발주사·감리 대응용 법적 효력급 문서</p>
+            <div class="p-6 bg-gradient-to-b from-emerald-950/40 to-slate-900 rounded-2xl border-t-4 border-emerald-500 border-x border-b border-emerald-900/40 flex flex-col min-h-[230px] hover:border-emerald-400 transition-all">
+              <div class="text-base font-black text-emerald-400 mono mb-3">OUTPUT 4 · QA 서명</div>
+              <h5 class="text-xl md:text-2xl font-bold text-white mb-3">종합 결과서</h5>
+              <p class="text-lg text-slate-300 leading-relaxed">발주사·감리 대응용 법적 효력급 문서</p>
             </div>
           </div>
         </div>
@@ -619,50 +593,50 @@ const DECK = [
   // 슬라이드 9: 솔루션 차별성
   {
     toc: '솔루션 차별성',
-    eyebrow: '07 — COMPETITIVE ADVANTAGE',
+    eyebrow: '06 — COMPETITIVE ADVANTAGE',
     title: '왜 QA-GPT여야만 하는가?',
     sub: '기존 수작업과 범용 LLM 대비 압도적 완성도',
     html: `
       <div class="overflow-x-auto animate-fadeIn">
-        <table class="w-full text-left text-xs md:text-sm text-slate-300 min-w-[800px]">
+        <table class="w-full text-left text-lg md:text-xl text-slate-200 min-w-[820px] rounded-2xl overflow-hidden border border-slate-700 border-separate border-spacing-0">
           <thead>
-            <tr class="bg-slate-900/80 border-b border-slate-800 text-slate-400 font-bold">
-              <th class="py-4 px-4">평가 항목</th>
-              <th class="py-4 px-4">기존 수작업</th>
-              <th class="py-4 px-4 bg-red-950/30 text-red-400">범용 LLM</th>
-              <th class="py-4 px-4 bg-emerald-950/30 text-emerald-400">QA-GPT</th>
+            <tr class="uppercase tracking-wide">
+              <th class="py-4 px-5 bg-slate-700 text-white font-extrabold border-b-2 border-slate-600">평가 항목</th>
+              <th class="py-4 px-5 bg-slate-800 text-slate-300 font-bold text-center border-b-2 border-l border-slate-600">기존 수작업</th>
+              <th class="py-4 px-5 bg-red-950/50 text-red-300 font-bold text-center border-b-2 border-l border-slate-600">범용 LLM</th>
+              <th class="py-4 px-5 bg-emerald-800/50 text-emerald-200 font-extrabold text-center border-b-2 border-l-2 border-emerald-500/50">QA-GPT</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-800/60">
-            <tr class="hover:bg-slate-800/20">
-              <td class="py-4 px-4 font-bold">표준 규칙 내재화</td>
-              <td class="py-4 px-4">개인 경험 의존</td>
-              <td class="py-4 px-4 bg-red-950/20">도메인 가이드 부재</td>
-              <td class="py-4 px-4 bg-emerald-950/20"><span class="text-emerald-400 font-bold">212개 규칙 RAG</span></td>
+          <tbody>
+            <tr>
+              <td class="py-4 px-5 font-bold text-white bg-slate-800/40 border-b border-slate-800">표준 규칙 내재화</td>
+              <td class="py-4 px-5 text-center text-slate-400 border-b border-l border-slate-800">개인 경험 의존</td>
+              <td class="py-4 px-5 text-center text-red-300/90 bg-red-950/20 border-b border-l border-slate-800">도메인 가이드 부재</td>
+              <td class="py-4 px-5 text-center font-extrabold text-emerald-300 bg-emerald-900/25 border-b border-l-2 border-emerald-500/40">212개 규칙 RAG</td>
             </tr>
-            <tr class="hover:bg-slate-800/20">
-              <td class="py-4 px-4 font-bold">검토 신뢰 범위</td>
-              <td class="py-4 px-4">샘플링만 가능</td>
-              <td class="py-4 px-4 bg-red-950/20">단일 패턴만</td>
-              <td class="py-4 px-4 bg-emerald-950/20"><span class="text-emerald-400 font-bold">다차원 전수</span></td>
+            <tr>
+              <td class="py-4 px-5 font-bold text-white bg-slate-900/40 border-b border-slate-800">검토 신뢰 범위</td>
+              <td class="py-4 px-5 text-center text-slate-400 border-b border-l border-slate-800">샘플링만 가능</td>
+              <td class="py-4 px-5 text-center text-red-300/90 bg-red-950/20 border-b border-l border-slate-800">단일 패턴만</td>
+              <td class="py-4 px-5 text-center font-extrabold text-emerald-300 bg-emerald-900/25 border-b border-l-2 border-emerald-500/40">다차원 전수</td>
             </tr>
-            <tr class="hover:bg-slate-800/20">
-              <td class="py-4 px-4 font-bold">결과 재현성</td>
-              <td class="py-4 px-4">담당자별 편차</td>
-              <td class="py-4 px-4 bg-red-950/20">매회 불일치</td>
-              <td class="py-4 px-4 bg-emerald-950/20"><span class="text-emerald-400 font-bold">100% 동일</span></td>
+            <tr>
+              <td class="py-4 px-5 font-bold text-white bg-slate-800/40 border-b border-slate-800">결과 재현성</td>
+              <td class="py-4 px-5 text-center text-slate-400 border-b border-l border-slate-800">담당자별 편차</td>
+              <td class="py-4 px-5 text-center text-red-300/90 bg-red-950/20 border-b border-l border-slate-800">매회 불일치</td>
+              <td class="py-4 px-5 text-center font-extrabold text-emerald-300 bg-emerald-900/25 border-b border-l-2 border-emerald-500/40">100% 동일</td>
             </tr>
-            <tr class="hover:bg-slate-800/20">
-              <td class="py-4 px-4 font-bold">자동 산출물</td>
-              <td class="py-4 px-4">수기 작성</td>
-              <td class="py-4 px-4 bg-red-950/20">미지원</td>
-              <td class="py-4 px-4 bg-emerald-950/20"><span class="text-emerald-400 font-bold">3+1종 즉시</span></td>
+            <tr>
+              <td class="py-4 px-5 font-bold text-white bg-slate-900/40 border-b border-slate-800">자동 산출물</td>
+              <td class="py-4 px-5 text-center text-slate-400 border-b border-l border-slate-800">수기 작성</td>
+              <td class="py-4 px-5 text-center text-red-300/90 bg-red-950/20 border-b border-l border-slate-800">미지원</td>
+              <td class="py-4 px-5 text-center font-extrabold text-emerald-300 bg-emerald-900/25 border-b border-l-2 border-emerald-500/40">3+1종 즉시</td>
             </tr>
-            <tr class="bg-amber-950/30">
-              <td class="py-4 px-4 font-bold text-amber-400">소요 시간</td>
-              <td class="py-4 px-4 text-amber-300"><span class="font-semibold">6~7일</span> (인력 대기 포함)</td>
-              <td class="py-4 px-4 text-amber-300">2~3일 (여전히 지연)</td>
-              <td class="py-4 px-4 bg-emerald-900/40"><span class="font-bold text-lg text-emerald-300">5분 이내</span> ⚡</td>
+            <tr>
+              <td class="py-4 px-5 font-black text-amber-300 bg-amber-950/40">소요 시간</td>
+              <td class="py-4 px-5 text-center text-amber-200/90 bg-amber-950/20 border-l border-slate-800"><span class="font-bold">6~7일</span></td>
+              <td class="py-4 px-5 text-center text-amber-200/90 bg-amber-950/20 border-l border-slate-800">2~3일</td>
+              <td class="py-4 px-5 text-center bg-emerald-800/40 border-l-2 border-emerald-500/50"><span class="font-black text-2xl md:text-3xl text-emerald-200">5분 이내</span> ⚡</td>
             </tr>
           </tbody>
         </table>
@@ -672,69 +646,87 @@ const DECK = [
   // 슬라이드 10: ROI
   {
     toc: '기대효과 & ROI',
-    eyebrow: '08 — ECONOMIC IMPACT',
+    eyebrow: '07 — ECONOMIC IMPACT',
     title: '숫자로 입증하는 가치창출',
     sub: '연간 기준 실제 투입 리소스 비용 절감 분석',
     html: `
-      <div class="space-y-6 lg:space-y-8 animate-fadeIn">
-
+      <div class="animate-fadeIn">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-          <div class="lg:col-span-7 bg-slate-900/60 p-6 lg:p-8 rounded-2xl border border-slate-800 flex flex-col justify-between">
+          <div class="lg:col-span-7 bg-gradient-to-br from-slate-900 to-slate-950 p-6 lg:p-7 rounded-2xl border border-slate-700 shadow-2xl shadow-black/40 flex flex-col justify-between">
             <div>
-              <h4 class="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-5">QA-GPT 연간 운영 리소스 절감액 산식</h4>
+              <h4 class="flex items-center gap-3 text-lg md:text-xl font-bold text-slate-300 tracking-wide mb-6">
+                <i class="fas fa-calculator text-blue-400"></i> 연간 운영 리소스 절감액 산식
+              </h4>
               <div class="grid grid-cols-3 gap-4 text-center mb-6">
-                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700/60">
-                  <span class="block text-[10px] md:text-xs text-slate-500 uppercase font-bold mb-1">연간 검토</span>
-                  <span class="text-2xl lg:text-3xl font-extrabold text-blue-400 mono">40회</span>
-                  <span class="block text-[9px] md:text-xs text-slate-400 mt-1">(20PJT × 2회)</span>
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/60 shadow-lg">
+                  <i class="fas fa-calendar-check text-blue-400 text-2xl mb-2"></i>
+                  <span class="block text-4xl lg:text-5xl font-black text-blue-400 mono leading-none">40<span class="text-2xl">회</span></span>
+                  <span class="block text-base text-slate-400 mt-2 font-semibold">연간 검토</span>
+                  <span class="block text-sm text-slate-500">20PJT × 2회</span>
                 </div>
-                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700/60">
-                  <span class="block text-[10px] md:text-xs text-slate-500 uppercase font-bold mb-1">평균 소요</span>
-                  <span class="text-2xl lg:text-3xl font-extrabold text-amber-400 mono">5.5일</span>
-                  <span class="block text-[9px] md:text-xs text-slate-400 mt-1">(대기 포함)</span>
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/60 shadow-lg">
+                  <i class="fas fa-hourglass-half text-amber-400 text-2xl mb-2"></i>
+                  <span class="block text-4xl lg:text-5xl font-black text-amber-400 mono leading-none">5.5<span class="text-2xl">일</span></span>
+                  <span class="block text-base text-slate-400 mt-2 font-semibold">평균 소요</span>
+                  <span class="block text-sm text-slate-500">대기 포함</span>
                 </div>
-                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700/60">
-                  <span class="block text-[10px] md:text-xs text-slate-500 uppercase font-bold mb-1">단가</span>
-                  <span class="text-2xl lg:text-3xl font-extrabold text-cyan-400 mono">70만</span>
-                  <span class="block text-[9px] md:text-xs text-slate-400 mt-1">원/일</span>
+                <div class="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/60 shadow-lg">
+                  <i class="fas fa-won-sign text-cyan-400 text-2xl mb-2"></i>
+                  <span class="block text-4xl lg:text-5xl font-black text-cyan-400 mono leading-none">70<span class="text-2xl">만</span></span>
+                  <span class="block text-base text-slate-400 mt-2 font-semibold">1일 단가</span>
+                  <span class="block text-sm text-slate-500">원/일</span>
                 </div>
               </div>
 
-              <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center flex flex-wrap items-center justify-center gap-2 text-sm md:text-base font-bold">
-                <span class="mono text-blue-400 text-lg">40</span>
-                <span class="text-slate-600">×</span>
-                <span class="mono text-amber-400 text-lg">5.5</span>
-                <span class="text-slate-600">×</span>
-                <span class="mono text-cyan-400 text-lg">70</span>
-                <span class="text-slate-500">=</span>
-                <div class="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg mono text-base md:text-lg font-bold">1억 5,400만원</div>
+              <div class="relative bg-gradient-to-r from-emerald-950/40 via-amber-950/30 to-emerald-950/40 p-6 rounded-2xl border border-amber-500/40 text-center shadow-xl shadow-amber-500/5 overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+                <div class="text-base text-slate-400 font-semibold mb-1 mono tracking-wide">40회 × 5.5일 × 70만원</div>
+                <div class="flex items-baseline justify-center gap-2 flex-wrap">
+                  <span class="text-lg text-slate-400">연간</span>
+                  <span class="text-5xl lg:text-6xl font-black mono tracking-tight whitespace-nowrap" style="background: linear-gradient(135deg,#fbbf24,#34d399); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">1억 5,400만원</span>
+                  <span class="text-lg text-slate-400">절감</span>
+                </div>
               </div>
             </div>
 
-            <div class="mt-6 pt-4 border-t border-slate-800">
-              <p class="text-xs md:text-sm text-slate-400 mb-2"><strong>💡 이 수치는 보수적 추정입니다</strong></p>
-              <p class="text-xs text-slate-500">• 기준: 연 40회 검토 프로젝트 (20개 PJT × 2회)</p>
-              <p class="text-xs text-slate-500">• 평균 5.5일 소요 단축 시 인력 비용 절감</p>
-              <p class="text-xs text-slate-500">• 포함 미반영: 재작업 비용 절감, 지체상금 회피 등</p>
+            <div class="mt-6 pt-5 border-t border-slate-800">
+              <p class="text-base md:text-lg text-amber-300 font-bold mb-2"><i class="fas fa-lightbulb"></i> 이 수치는 보수적 추정입니다</p>
+              <p class="text-base text-slate-400">재작업 비용 절감, 지체상금 회피 등 <strong class="text-slate-200">추가 효과는 미반영</strong></p>
             </div>
           </div>
 
-          <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-6 lg:p-8 rounded-2xl border border-slate-700 flex flex-col justify-between">
+          <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-6 lg:p-7 rounded-2xl border border-slate-700 shadow-2xl shadow-black/40 flex flex-col justify-between">
             <div>
-              <div class="text-xs md:text-sm text-slate-400 font-extrabold tracking-wider uppercase mb-4">추가 효과</div>
-              <div class="space-y-4">
-                <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700/60">
-                  <div class="text-sm font-bold text-slate-200 mb-2">PM의 품질 수준 향상</div>
-                  <div class="text-xs text-slate-400">일관된 검증 기준으로 인한 능력 강화</div>
-                  <div class="text-lg font-bold text-blue-400 mt-2">α</div>
+              <div class="flex items-center gap-3 mb-6">
+                <span class="text-xl md:text-2xl text-amber-300 font-extrabold tracking-wide">측정되지 않는 효과</span>
+                <span class="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-black text-lg mono">+α</span>
+              </div>
+              <div class="space-y-5">
+                <div class="p-4 bg-slate-800/50 rounded-2xl border-l-4 border-blue-500 border-y border-r border-slate-700/60 flex items-center justify-between gap-3 shadow-lg">
+                  <div class="flex items-center gap-4">
+                    <i class="fas fa-chart-line text-blue-400 text-2xl"></i>
+                    <div>
+                      <div class="text-xl font-bold text-white mb-1">PM 품질 수준 향상</div>
+                      <div class="text-base text-slate-400">일관된 검증 기준으로 역량 상향 평준화</div>
+                    </div>
+                  </div>
+                  <span class="text-4xl font-black text-blue-400 mono shrink-0">+α</span>
                 </div>
-                <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700/60">
-                  <div class="text-sm font-bold text-slate-200 mb-2">고객사 신뢰도 증대</div>
-                  <div class="text-xs text-slate-400">빠르고 정확한 품질 검증의 신뢰성</div>
-                  <div class="text-lg font-bold text-cyan-400 mt-2">α</div>
+                <div class="p-4 bg-slate-800/50 rounded-2xl border-l-4 border-cyan-500 border-y border-r border-slate-700/60 flex items-center justify-between gap-3 shadow-lg">
+                  <div class="flex items-center gap-4">
+                    <i class="fas fa-handshake text-cyan-400 text-2xl"></i>
+                    <div>
+                      <div class="text-xl font-bold text-white mb-1">고객사 신뢰도 증대</div>
+                      <div class="text-base text-slate-400">빠르고 정확한 품질 검증의 신뢰성</div>
+                    </div>
+                  </div>
+                  <span class="text-4xl font-black text-cyan-400 mono shrink-0">+α</span>
                 </div>
               </div>
+            </div>
+            <div class="mt-6 pt-5 border-t border-slate-800 text-center">
+              <p class="text-lg text-slate-300">정량 절감 <span class="text-amber-300 font-bold">1.5억</span> <span class="text-slate-500">+</span> 정성 효과 <span class="text-emerald-300 font-bold">+α</span></p>
             </div>
           </div>
 
@@ -745,53 +737,112 @@ const DECK = [
   // 슬라이드 11: 확장 및 비즈니스 모델
   {
     toc: '확장 및 비즈니스 모델',
-    eyebrow: '09 — FUTURE ROADMAP',
+    eyebrow: '08 — FUTURE ROADMAP',
     title: '사내 표준 도구에서 대외 수익형 PaaS 솔루션으로',
     sub: '단계별 팽창 전략을 통한 QA-GPT 수익 다각화 및 가치 창출 경로',
     html: `
-      <div class="space-y-6 lg:space-y-8 animate-fadeIn">
+      <div class="animate-fadeIn">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
 
-          <div class="bg-slate-900/60 p-6 lg:p-8 rounded-2xl border border-slate-800 flex flex-col justify-between relative h-full">
-            <div>
-              <span class="text-[10px] md:text-xs text-blue-400 font-extrabold tracking-widest uppercase block mb-3">Phase 1. Internal Optimization</span>
-              <h4 class="text-lg lg:text-xl font-bold text-white mb-3">사내 품질관리 표준화</h4>
-              <p class="text-xs md:text-sm text-slate-300 leading-relaxed mb-4">
-                전사에서 수주 진행하는 모든 공공/금융 IT SI 프로젝트에 필수 탑재를 실현합니다. 사내 QA 리소스 투입비 부담을 원천 제로화하며 PM 역량 격차 상향 표준화를 완수합니다.
-              </p>
-              <div class="text-xs md:text-sm text-blue-300 space-y-2 pt-2 border-t border-slate-800">
-                <div><span class="font-bold">시너지:</span> 월 88시간 절감 × 12개월 = 1,056시간 내부 역량 재배치</div>
-              </div>
+          <div class="bg-slate-900/60 p-8 lg:p-9 rounded-2xl border-t-4 border-blue-500 border-x border-b border-slate-800 flex flex-col relative min-h-[540px] shadow-xl hover:border-blue-400 transition-all break-keep">
+            <div class="flex items-center gap-4 mb-5">
+              <span class="w-14 h-14 rounded-xl bg-blue-500/15 border border-blue-500/40 flex items-center justify-center text-blue-400 text-3xl"><i class="fas fa-building-shield"></i></span>
+              <span class="text-xl md:text-2xl text-blue-400 font-extrabold tracking-widest uppercase">Phase 1</span>
+            </div>
+            <h4 class="text-3xl lg:text-4xl font-black text-white mb-4">사내 품질관리 표준화</h4>
+            <p class="text-xl text-slate-300 leading-relaxed mb-5">
+              전사 모든 공공·금융 IT SI 프로젝트에 필수 탑재하여 사내 품질 기준을 통일합니다.
+            </p>
+            <ul class="space-y-3 text-lg text-slate-200 mb-6">
+              <li class="flex gap-3"><span class="text-blue-400 font-black">✓</span> 사내 QA 리소스 투입비 원천 제로화</li>
+              <li class="flex gap-3"><span class="text-blue-400 font-black">✓</span> PM 역량 격차 상향 표준화</li>
+              <li class="flex gap-3"><span class="text-blue-400 font-black">✓</span> 전 프로젝트 동일 품질 기준 적용</li>
+            </ul>
+            <div class="mt-auto bg-blue-500/10 rounded-xl px-5 py-4 text-lg text-blue-200 border border-blue-500/20">
+              <span class="font-bold text-blue-300">시너지</span> · 월 88시간 × 12개월 = <strong class="text-white">1,056시간</strong> 재배치
             </div>
           </div>
 
-          <div class="bg-slate-900/60 p-6 lg:p-8 rounded-2xl border border-amber-500/30 flex flex-col justify-between relative h-full bg-gradient-to-b from-slate-900 to-amber-950/10">
-            <div>
-              <span class="text-[10px] md:text-xs text-amber-400 font-extrabold tracking-widest uppercase block mb-3">Phase 2. Proposal Differentiation</span>
-              <h4 class="text-lg lg:text-xl font-bold text-white mb-3">수주 제안 차별화 우위 확보</h4>
-              <p class="text-xs md:text-sm text-slate-300 leading-relaxed mb-4">
-                RFP 발표 시 "AI 기반 자동 품질 검증 서비스"를 고객사 차별화 솔루션으로 제시하여 제안 가점 확보 및 낙찰 확률 극대화합니다.
-              </p>
-              <div class="text-xs md:text-sm text-amber-300 space-y-2 pt-2 border-t border-slate-800">
-                <div><span class="font-bold">시너지:</span> 제안 경쟁력 강화 및 고객 신뢰도 상향</div>
-              </div>
+          <div class="p-8 lg:p-9 rounded-2xl border-t-4 border-amber-500 border-x border-b border-amber-500/20 flex flex-col relative min-h-[540px] bg-gradient-to-b from-slate-900 to-amber-950/15 shadow-xl hover:border-amber-400 transition-all break-keep">
+            <div class="flex items-center gap-4 mb-5">
+              <span class="w-14 h-14 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 text-3xl"><i class="fas fa-trophy"></i></span>
+              <span class="text-xl md:text-2xl text-amber-400 font-extrabold tracking-widest uppercase">Phase 2</span>
+            </div>
+            <h4 class="text-3xl lg:text-4xl font-black text-white mb-4">수주 제안 차별화 우위</h4>
+            <p class="text-xl text-slate-300 leading-relaxed mb-5">
+              RFP 발표 시 "AI 기반 자동 품질 검증"을 차별화 무기로 제시합니다.
+            </p>
+            <ul class="space-y-3 text-lg text-slate-200 mb-6">
+              <li class="flex gap-3"><span class="text-amber-400 font-black">✓</span> 제안 평가 가점 확보</li>
+              <li class="flex gap-3"><span class="text-amber-400 font-black">✓</span> 낙찰 확률 극대화</li>
+              <li class="flex gap-3"><span class="text-amber-400 font-black">✓</span> 고객 신뢰도 선제 확보</li>
+            </ul>
+            <div class="mt-auto bg-amber-500/10 rounded-xl px-5 py-4 text-lg text-amber-200 border border-amber-500/20">
+              <span class="font-bold text-amber-300">시너지</span> · 제안 경쟁력 강화 및 수주율 상승
             </div>
           </div>
 
-          <div class="bg-slate-900/60 p-6 lg:p-8 rounded-2xl border border-cyan-500/30 flex flex-col justify-between relative h-full bg-gradient-to-b from-slate-900 to-cyan-950/10">
-            <div>
-              <span class="text-[10px] md:text-xs text-cyan-400 font-extrabold tracking-widest uppercase block mb-3">Phase 3. Commercial Enterprise PaaS</span>
-              <h4 class="text-lg lg:text-xl font-bold text-white mb-3">글로벌 대외 엔터프라이즈 PaaS</h4>
-              <p class="text-xs md:text-sm text-slate-300 leading-relaxed mb-4">
-                보안에 민감한 금융/공공 기관을 위한 폐쇄망 격리 어플라이언스 솔루션으로 제품화하여 라이선스 수익 다각화를 일구어냅니다.
-              </p>
-              <div class="text-xs md:text-sm text-cyan-300 space-y-2 pt-2 border-t border-slate-800">
-                <div><span class="font-bold">시너지:</span> 라이선스 캐시카우 및 신사업 수익 다각화 실현</div>
-              </div>
+          <div class="p-8 lg:p-9 rounded-2xl border-t-4 border-cyan-500 border-x border-b border-cyan-500/20 flex flex-col relative min-h-[540px] bg-gradient-to-b from-slate-900 to-cyan-950/15 shadow-xl hover:border-cyan-400 transition-all break-keep">
+            <div class="flex items-center gap-4 mb-5">
+              <span class="w-14 h-14 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-3xl"><i class="fas fa-globe"></i></span>
+              <span class="text-xl md:text-2xl text-cyan-400 font-extrabold tracking-widest uppercase">Phase 3</span>
+            </div>
+            <h4 class="text-3xl lg:text-4xl font-black text-white mb-4">당사 엔터프라이즈 PaaS</h4>
+            <p class="text-xl text-slate-300 leading-relaxed mb-5">
+              금융·공공 기관 대상 폐쇄망 격리 어플라이언스로 제품화합니다.
+            </p>
+            <ul class="space-y-3 text-lg text-slate-200 mb-6">
+              <li class="flex gap-3"><span class="text-cyan-400 font-black">✓</span> 보안 민감 기관 맞춤 온프레미스</li>
+              <li class="flex gap-3"><span class="text-cyan-400 font-black">✓</span> 라이선스 기반 수익 모델</li>
+              <li class="flex gap-3"><span class="text-cyan-400 font-black">✓</span> 신사업 캐시카우 확보</li>
+            </ul>
+            <div class="mt-auto bg-cyan-500/10 rounded-xl px-5 py-4 text-lg text-cyan-200 border border-cyan-500/20">
+              <span class="font-bold text-cyan-300">시너지</span> · 라이선스 수익 다각화 실현
             </div>
           </div>
 
         </div>
+      </div>
+    `
+  },
+  // 슬라이드 11: AI 활용 방향 (마무리 메시지)
+  {
+    toc: 'AI 활용 방향',
+    eyebrow: '09 — CLOSING MESSAGE',
+    title: '이제 질문은 "AI를 쓸까"가 아니다',
+    sub: '금번 해커톤은, 당사가 AI를 "어떻게" 활용할지 고민해야 할 시점임을 보여줍니다',
+    html: `
+      <div class="space-y-6 lg:space-y-8 animate-fadeIn">
+
+        <div class="bg-gradient-to-r from-blue-900/25 via-slate-900 to-amber-900/15 border-l-4 border-blue-500 p-6 lg:p-8 rounded-r-2xl">
+          <p class="text-xl md:text-3xl leading-relaxed text-slate-100 font-bold">
+            QA-GPT는 <span class="text-blue-400">"일주일이 걸리던 일을 5분으로"</span> 바꿨습니다.<br class="hidden md:block">
+            같은 변화가 <span class="text-amber-400">당사의 모든 업무</span>에서 가능합니다.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+          <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all flex flex-col">
+            <h4 class="font-extrabold text-white text-xl md:text-2xl mb-2">문제를 다시 본다</h4>
+            <p class="text-base md:text-base text-slate-400 leading-relaxed">"당연히 사람이 해야 한다"고 여겼던 반복·대조·검수 업무를 AI 관점에서 재정의합니다.</p>
+          </div>
+          <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 hover:border-amber-500/50 transition-all flex flex-col">
+            <h4 class="font-extrabold text-white text-xl md:text-2xl mb-2">도구가 아닌 체계로</h4>
+            <p class="text-base md:text-base text-slate-400 leading-relaxed">단순 챗봇 도입이 아니라, 규칙·데이터·전문가를 엮은 <strong>업무 내재화 체계</strong>로 접근해야 합니다.</p>
+          </div>
+          <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all flex flex-col">
+            <h4 class="font-extrabold text-white text-xl md:text-2xl mb-2">먼저 움직인다</h4>
+            <p class="text-base md:text-base text-slate-400 leading-relaxed">경쟁사보다 앞선 AI 내재화가 곧 수주 경쟁력이자 원가 경쟁력이 됩니다.</p>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-700 p-10 lg:p-14 rounded-3xl text-center shadow-2xl shadow-black/40">
+          <p class="text-2xl md:text-3xl text-slate-400 mb-4">QA-GPT는 그 첫 번째 증명입니다.</p>
+          <p class="text-4xl md:text-6xl font-black text-white leading-tight break-keep">
+            <span style="background: linear-gradient(135deg,#60a5fa,#0ea5e9 50%,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">당사의 다음 AI는 무엇이어야 하는가?</span>
+          </p>
+        </div>
+
       </div>
     `
   }
@@ -825,14 +876,14 @@ function renderSlide() {
     const convertedHtml = convertMarkdown(slide.html);
 
     const html = `
-      <div class="px-6 md:px-12 lg:px-16 py-6 md:py-8 w-full max-w-7xl mx-auto">
-        <div class="space-y-4 md:space-y-6 w-full slide-transition">
+      <div class="px-4 md:px-6 lg:px-8 py-2 md:py-3 w-full max-w-[110rem] mx-auto">
+        <div class="space-y-3 md:space-y-4 w-full slide-transition">
           <div>
-            <span class="text-xs md:text-sm text-slate-500 tracking-wider uppercase font-bold">${slide.eyebrow}</span>
-            <h2 class="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight dynamic-title" style="background: linear-gradient(135deg, #60a5fa 0%, #0ea5e9 50%, #f59e0b 100%); background-size: 200% 200%; animation: gradient 3s ease infinite; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">${slide.title}</h2>
-            <p class="text-base md:text-xl text-slate-400 mt-4 leading-relaxed dynamic-body">${slide.sub}</p>
+            <span class="text-base md:text-base text-slate-500 tracking-wider uppercase font-bold">${slide.eyebrow}</span>
+            <h2 id="slideTitle" class="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight dynamic-title" style="background: linear-gradient(135deg, #60a5fa 0%, #0ea5e9 50%, #f59e0b 100%); background-size: 200% 200%; animation: gradient 3s ease infinite; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">${slide.title}</h2>
+            <p class="text-lg md:text-2xl text-slate-400 mt-3 leading-relaxed dynamic-body">${slide.sub}</p>
           </div>
-          <div class="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-slate-800">
+          <div class="mt-4 md:mt-5 pt-4 md:pt-5 border-t border-slate-800">
             ${convertedHtml}
           </div>
         </div>
@@ -850,12 +901,80 @@ function renderSlide() {
     updateProgress();
     renderTOC();
 
+    // 표지: 핵심 지표 카운트업 + 타이틀 타이핑 (표지에서 주기적 반복)
+    stopCoverLoop();
+    animateCountUps();
+    if (currentSlide === 0) {
+      typeCoverTitle();
+      startCoverLoop();
+    }
+
     console.log('✓ Slide rendered:', currentSlide + 1);
   } catch (err) {
     console.error('❌ Error rendering slide:', err);
     console.error('Slide index:', currentSlide);
     console.error('Slide data:', DECK[currentSlide]);
   }
+}
+
+// 핵심 지표 카운트업 애니메이션 (0 → 목표값)
+function animateCountUps() {
+  const els = document.querySelectorAll('#slideStage [data-countup]');
+  els.forEach((el) => {
+    const target = parseFloat(el.getAttribute('data-countup')) || 0;
+    const decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
+    const suffix = el.getAttribute('data-suffix') || '';
+    const duration = 1400;
+    const start = performance.now();
+    function frame(now) {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      el.textContent = (target * eased).toFixed(decimals) + suffix;
+      if (p < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        el.textContent = target.toFixed(decimals) + suffix;
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// 표지 타이틀 타이핑 효과
+let typeToken = 0;
+function typeCoverTitle() {
+  const el = document.getElementById('slideTitle');
+  if (!el) return;
+  const full = el.getAttribute('data-full') || el.textContent;
+  el.setAttribute('data-full', full);
+  const myToken = ++typeToken; // 진행 중이던 이전 타이핑은 무효화
+  let i = 0;
+  el.textContent = '';
+  function step() {
+    if (myToken !== typeToken) return;
+    i++;
+    el.textContent = full.slice(0, i) + (i < full.length ? '▮' : '');
+    if (i < full.length) {
+      setTimeout(step, 60);
+    } else {
+      el.textContent = full;
+    }
+  }
+  step();
+}
+
+// 표지 애니메이션 반복 루프 (표지에 머무는 동안 일정 주기로 재생)
+let coverLoopTimer = null;
+function stopCoverLoop() {
+  if (coverLoopTimer) { clearInterval(coverLoopTimer); coverLoopTimer = null; }
+}
+function startCoverLoop() {
+  stopCoverLoop();
+  coverLoopTimer = setInterval(() => {
+    if (currentSlide !== 0) { stopCoverLoop(); return; } // 표지 벗어나면 중단
+    typeCoverTitle();
+    animateCountUps();
+  }, 7000);
 }
 
 // 네비게이션 업데이트
@@ -879,13 +998,13 @@ function renderTOC() {
     const tocHtml = DECK.map((slide, index) => `
       <button
         onclick="goSlide(${index})"
-        class="w-full text-left px-3 py-2.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
+        class="w-full text-left px-3 py-2.5 rounded-lg text-base md:text-base font-medium transition-all ${
           index === currentSlide
             ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
         }"
       >
-        <span class="text-[9px] font-bold text-slate-500">${String(index + 1).padStart(2, '0')}</span> ${slide.toc}
+        <span class="text-sm font-bold text-slate-500">${String(index + 1).padStart(2, '0')}</span> ${slide.toc}
       </button>
     `).join('');
     tocContainer.innerHTML = tocHtml;
