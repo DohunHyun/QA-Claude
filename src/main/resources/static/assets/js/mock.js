@@ -297,6 +297,63 @@ window.MOCK = (function () {
     }
   }
 
+  // ── 대기(진행중) 검증 저장소 (localStorage) ──────────────
+  //   업로드 즉시 '검증중' 행을 만들어 검증 현황에서 Phase 애니메이션을 보여준다.
+  //   완료·판정은 서버 실제 결과(/api/reviews)로만 확정하며, 매칭되면 여기서 제거한다.
+  var PENDING_KEY = 'qagpt.pendingReviews';
+  var RAMP_MS = 60000;              // 1→99% 램프 소요(약 1분)
+  var PENDING_TTL_MS = 30 * 60000;  // 좀비 대기행 자동 정리(30분)
+  function pendingRaw(){
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function savePending(arr){
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(arr)); } catch (e) {}
+  }
+  // TTL 초과 항목 정리 후 반환
+  function pendingReviews(){
+    var now = Date.now();
+    var raw = pendingRaw();
+    var arr = raw.filter(function(r){ return now - (r.startedAt || 0) < PENDING_TTL_MS; });
+    if (arr.length !== raw.length) savePending(arr);
+    return arr;
+  }
+  function pendingReviewsFor(code){
+    return pendingReviews().filter(function(r){ return r.projectCode === code; });
+  }
+  function addPendingReview(input){
+    var arr = pendingRaw();
+    // 음수 임시 id (실제 reviewId와 충돌 방지)
+    var minId = arr.reduce(function(m, r){ return Math.min(m, r.tempId || 0); }, 0);
+    var rec = {
+      tempId: minId - 1,
+      projectId: input.projectId != null ? input.projectId : null,
+      projectCode: input.projectCode || '미지정',
+      projectName: input.projectName || input.projectCode || '미지정 프로젝트',
+      stage: input.stage || '-',
+      fileName: input.fileName || '',
+      artifactLabel: input.artifactLabel
+        || (input.fileName ? String(input.fileName).replace(/\.[^.]+$/, '') : '업로드 산출물'),
+      round: input.round || 1,
+      startedAt: input.startedAt || Date.now(),
+      baselineMaxReviewId: input.baselineMaxReviewId || 0
+    };
+    arr.push(rec);
+    savePending(arr);
+    return rec;
+  }
+  function removePendingReview(tempId){
+    savePending(pendingRaw().filter(function(r){ return r.tempId !== tempId; }));
+  }
+  // 경과시간 → 진행%/phase. 상한 99%(실제 결과 도착 전까지 100% 금지 — 무한 대기).
+  function phaseProgress(startedAt, now){
+    var elapsed = Math.max(0, (now || Date.now()) - (startedAt || 0));
+    var frac = Math.min(1, elapsed / RAMP_MS);        // 약 1분 동안 선형으로 천천히 1→99
+    var pct = Math.max(1, Math.min(99, Math.round(1 + frac * 98)));
+    var phase = Math.max(1, Math.min(4, Math.ceil(pct / 25)));
+    return { pct: pct, phase: phase };
+  }
+
   // ── 단계말 검토결과서 발급 (QA 승인) ────────────────────
   var REPORT_KEY = 'qagpt.reports';
   function issuedReports(){
@@ -432,6 +489,9 @@ window.MOCK = (function () {
     allProjects: allProjects, addProject: addProject,
     pendingProjects: pendingProjects, setProjectStatus: setProjectStatus, validatableProjects: validatableProjects,
     defectsFor: defectsFor,
+    pendingReviews: pendingReviews, pendingReviewsFor: pendingReviewsFor,
+    addPendingReview: addPendingReview, removePendingReview: removePendingReview,
+    phaseProgress: phaseProgress,
     issuedReport: issuedReport, issueReport: issueReport,
     addNotification: addNotification,
     notificationsFor: notificationsFor, unreadCountFor: unreadCountFor, markAllReadFor: markAllReadFor,
