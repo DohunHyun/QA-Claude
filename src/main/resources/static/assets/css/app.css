@@ -41,7 +41,7 @@ a { color: inherit; text-decoration: none; }
 .top {
   background: #102a4e;
   color: #fff;
-  height: 46px;
+  height: 69px;              /* 기존 46px의 1.5배 */
   display: flex;
   align-items: center;
   padding: 0 18px;
@@ -81,7 +81,8 @@ a { color: inherit; text-decoration: none; }
 .qbanner .qb-art svg { height: 118px; display: block; }
 @media (max-width: 780px){ .qbanner .qb-art { display: none; } }
 
-.top-nav { display: flex; align-items: center; gap: 2px; height: 100%; }
+/* 메뉴들은 네비바 하단에 붙도록 정렬 (align-self: flex-end) */
+.top-nav { display: flex; align-items: center; gap: 2px; height: 46px; align-self: flex-end; }
 .top-nav a {
   color: #d6e0ef;
   padding: 0 15px;
@@ -137,7 +138,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ── 본문 레이아웃 ─────────────────────────────────────── */
-.shell { display: flex; min-height: calc(100vh - 46px); }
+.shell { display: flex; min-height: calc(100vh - 69px); }
 
 .side {
   width: 214px;
