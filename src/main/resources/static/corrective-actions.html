@@ -22,7 +22,6 @@
       <div class="fg"><label>회차</label><select id="roundSel"><option value="">전체</option></select></div>
       <div class="fg"><label>검색</label><input type="text" id="q" placeholder="산출물 · 결함내용"></div>
       <div class="spacer"></div>
-      <span class="muted" id="scopeTag"></span>
     </div>
 
     <div id="detail"></div>
@@ -39,9 +38,6 @@
     var list=M.visibleProjects();
     var params=new URLSearchParams(location.search);
     var curRows=[];   // 현재 화면에 표시 중인 시정조치 행 (Excel 내보내기용)
-
-    document.getElementById('scopeTag').innerHTML = (u.role==='PM')
-      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
 
     if(!list.length){
       document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
