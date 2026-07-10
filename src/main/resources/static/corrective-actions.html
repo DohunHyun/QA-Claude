@@ -38,6 +38,7 @@
     var list=M.visibleProjects();
     var params=new URLSearchParams(location.search);
     var curRows=[];   // 현재 화면에 표시 중인 시정조치 행 (Excel 내보내기용)
+    var curLedger=[]; // 선택 프로젝트의 시정조치 대장 (백엔드 실데이터 우선, 실패 시 목업)
 
     if(!list.length){
       document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
@@ -48,18 +49,16 @@
       var pid=params.get('projectId');
       var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
       document.getElementById('projSel').value=String(sel.id);
-      fillRounds();
-      render();
+      loadActions();
       document.getElementById('projSel').addEventListener('change', function(){
-        history.replaceState(null,'','corrective-actions.html?projectId='+this.value); fillRounds(); render(); });
+        history.replaceState(null,'','corrective-actions.html?projectId='+this.value); loadActions(); });
       ['stageSel','roundSel'].forEach(function(id){ document.getElementById(id).addEventListener('change', render); });
       document.getElementById('q').addEventListener('input', render);
     }
 
-    // 회차 드롭다운 — 선택 프로젝트 결함의 회차(distinct)로 채움
+    // 회차 드롭다운 — 선택 프로젝트 대장의 회차(distinct)로 채움
     function fillRounds(){
-      var p=curProject(); if(!p) return;
-      var rounds=[]; M.LEDGER.forEach(function(d){ if(rounds.indexOf(d.round)===-1) rounds.push(d.round); });
+      var rounds=[]; curLedger.forEach(function(d){ if(d.round!=null && rounds.indexOf(d.round)===-1) rounds.push(d.round); });
       rounds.sort(function(a,b){return a-b;});
       document.getElementById('roundSel').innerHTML='<option value="">전체</option>'
         + rounds.map(function(r){ return '<option value="'+r+'">'+r+'회차</option>'; }).join('');
@@ -70,9 +69,47 @@
       return list.filter(function(p){return String(p.id)===id;})[0];
     }
 
+    function fmtDate(iso){ return iso ? String(iso).slice(0,10) : ''; }
+    // 백엔드 시정조치 DTO + 소속 검토(review) → 화면 행 shape 로 매핑
+    function mapAction(a, rv){
+      return { no:a.no, project:rv.projectCode, biz:a.businessName||'', gubun:'공통',
+        stage:rv.stage, round:rv.round, date:fmtDate(rv.createdAt), reviewer:'AI품질검토봇',
+        artifact:a.artifactName||'', file:a.fileName||'', loc:a.nonconformityLocation||'',
+        sev:a.improvementType||'', dtype:a.defectType||'', desc:a.nonconformityContent||'',
+        owner:a.assignee||'', due:a.plannedDate||'', doneDate:a.confirmedDate||'',
+        plan:a.actionPlan||'', status:a.status||'TARGET', checker:a.confirmation||'', checkDate:a.confirmedDate||'' };
+    }
+    // 선택 프로젝트의 시정조치 대장 로드 — 백엔드 실데이터(검토별 시정조치) 우선, 실패 시 목업(프로젝트 필터)
+    function loadActions(){
+      var p=curProject();
+      if(!p){ curLedger=[]; fillRounds(); render(); return; }
+      var code=p.code;
+      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">불러오는 중…</div></section>';
+      fetch('/api/reviews')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(reviews){
+          var mine=(reviews||[]).filter(function(rv){ return rv.projectCode===code; });
+          if(!mine.length){ curLedger=[]; fillRounds(); render(); return; }
+          return Promise.all(mine.map(function(rv){
+            return fetch('/api/reviews/'+rv.reviewId+'/corrective-actions')
+              .then(function(r){ return r.ok ? r.json() : []; })
+              .then(function(listA){ return (listA||[]).map(function(a){ return mapAction(a, rv); }); })
+              .catch(function(){ return []; });
+          })).then(function(chunks){
+            curLedger=[].concat.apply([], chunks);
+            fillRounds(); render();
+          });
+        })
+        .catch(function(){
+          // 백엔드 미연결(정적 프리뷰) → 목업을 선택 프로젝트로 필터
+          curLedger=(M.LEDGER||[]).filter(function(d){ return d.project===code; });
+          fillRounds(); render();
+        });
+    }
+
     function render(){
       var p=curProject(); if(!p) return;
-      var all=M.LEDGER;   // 시정조치관리대장(설계단계) 실 샘플 기준
+      var all=curLedger;   // 선택 프로젝트의 시정조치 대장(백엔드 실데이터 우선, 실패 시 목업)
       // 필터 적용 — 단계 · 회차 · 검색
       var stageF=document.getElementById('stageSel').value;
       var roundF=document.getElementById('roundSel').value;
