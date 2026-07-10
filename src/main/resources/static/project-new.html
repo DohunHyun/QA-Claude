@@ -79,13 +79,9 @@
         analysisStart:anStart, analysisEnd:dateOrNull('anEnd'),
         designStart:dateOrNull('dsStart'), designEnd:dateOrNull('dsEnd') };
 
-      // 프론트 목록에 즉시 반영 (현재 PM 소유로 저장 → 목록/드롭다운에 노출)
-      var created = M.addProject({ name:name, code:code,
-        start: mgmtStart || anStart || '', end: dateOrNull('dsEnd') || dateOrNull('anEnd') || '' });
-
-      function successBox(prefix){
+      function successBox(prefix, disp){
         $('#result').html('<div class="note" style="background:#eef8f1;border-color:#bfe3c9;color:#1f7a43">'
-          + '✔ '+prefix+' — <b>'+M.esc(created.name)+'</b> ('+M.esc(created.code)+' · #'+created.id+' · 승인대기).<br>'
+          + '✔ '+prefix+' — <b>'+M.esc(disp.name)+'</b> ('+M.esc(disp.code)+' · #'+disp.id+' · 승인대기).<br>'
           + '<span class="soft"><b>관리자 승인 후</b> 산출물 검증을 진행할 수 있습니다. 승인 결과는 알림으로 전달됩니다.</span><br>'
           + '<div class="btn-row" style="margin-top:10px">'
           +   '<a class="btn sec" href="projects.html">프로젝트 목록</a>'
@@ -94,8 +90,14 @@
 
       var $b=$('#createBtn').prop('disabled',true).text('신청 중…');
       $.ajax({ url:'/api/projects', type:'POST', contentType:'application/json', data:JSON.stringify(payload) })
-        .done(function(){ successBox('신청 완료(백엔드 저장)'); })
-        .fail(function(){ successBox('신청 완료(목업 저장 · 백엔드 미연결)'); })
+        // 백엔드 저장 성공 → 백엔드가 원본. 목업 중복 생성하지 않는다(id 불일치·이중 노출 방지).
+        .done(function(res){ successBox('신청 완료(백엔드 저장)', { name:name, code:code, id:(res&&res.id)||'—' }); })
+        // 백엔드 미연결(정적 프리뷰) → 목업 폴백 저장.
+        .fail(function(){
+          var created = M.addProject({ name:name, code:code,
+            start: mgmtStart || anStart || '', end: dateOrNull('dsEnd') || dateOrNull('anEnd') || '' });
+          successBox('신청 완료(목업 저장 · 백엔드 미연결)', created);
+        })
         .always(function(){ $b.prop('disabled',false).text('신청 (관리자 승인 요청)'); });
     });
   </script>

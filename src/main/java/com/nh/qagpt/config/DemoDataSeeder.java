@@ -7,6 +7,7 @@ import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.domain.enums.*;
 import com.nh.qagpt.repository.CorrectiveActionRepository;
+import com.nh.qagpt.repository.DefectRepository;
 import com.nh.qagpt.repository.DocumentRepository;
 import com.nh.qagpt.repository.ProjectRepository;
 import com.nh.qagpt.repository.ReviewResultRepository;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,14 +38,17 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final DocumentRepository documentRepo;
     private final ReviewResultRepository reviewRepo;
     private final CorrectiveActionRepository correctiveActionRepo;
+    private final DefectRepository defectRepo;
 
     public DemoDataSeeder(ProjectRepository projectRepo, DocumentRepository documentRepo,
                           ReviewResultRepository reviewRepo,
-                          CorrectiveActionRepository correctiveActionRepo) {
+                          CorrectiveActionRepository correctiveActionRepo,
+                          DefectRepository defectRepo) {
         this.projectRepo = projectRepo;
         this.documentRepo = documentRepo;
         this.reviewRepo = reviewRepo;
         this.correctiveActionRepo = correctiveActionRepo;
+        this.defectRepo = defectRepo;
     }
 
     // 검토 회차: 프로젝트코드 | 산출물명 | 회차 | 상태 | 통과 | 개선수 | 권고수
@@ -55,7 +60,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         "NHOB|요구사항정의서|2|COMPLETED|true|0|2",
         "NHOB|배치Job목록|1|COMPLETED|true|0|1",
         "NHOB|프로세스정의서|1|COMPLETED|true|0|1",
-        "NHOB|UI목록|1|RUNNING|false|0|0",
+        "NHOB|UI목록|1|COMPLETED|true|0|0",
         "NHOB|배치설계서|2|COMPLETED|false|3|2",
         "NHOB|인터페이스설계서|1|COMPLETED|false|2|1",
         "NHOB|프로그램목록|1|COMPLETED|false|1|1",
@@ -67,7 +72,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         "NHUL|요구사항정의서|3|COMPLETED|true|0|1",
         "NHUL|인터페이스정의서|1|COMPLETED|true|0|1",
         "NHUL|배치설계서|1|COMPLETED|false|4|2",
-        "NHUL|배치설계서|2|RUNNING|false|0|0",
+        "NHUL|배치설계서|2|COMPLETED|true|0|0",
         "NHUL|UI목록|1|COMPLETED|false|2|3",
         // NHGBS — 전 단계 완료(통과)
         "NHGBS|문서작성지침서|1|COMPLETED|true|0|0",
@@ -101,6 +106,10 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        // 시드 가드와 무관하게 매 기동 실행: 비정상 종료/레거시 시드 등으로 RUNNING 으로
+        // 멈춘 검토를 완료 처리한다(라이브 Postgres의 잔류 RUNNING 정리).
+        resolveStuckRunningReviews();
+
         // 데모 프로젝트(NHOB)가 이미 있으면 시드 완료 상태 → 재시드 안 함.
         // (사용자 테스트로 생성된 다른 프로젝트가 있어도 데모 데이터는 채운다.)
         if (projectRepo.findByCode("NHOB").isPresent()) return;
@@ -153,6 +162,24 @@ public class DemoDataSeeder implements ApplicationRunner {
 
             seedCorrectiveActions(r, at);
         }
+    }
+
+    /**
+     * RUNNING/PENDING 으로 멈춘 검토를 완료 처리한다. 동기 검증(/api/validate)은 항상
+     * COMPLETED 로 저장하므로 잔류 RUNNING/PENDING 은 멈춘(orphan) 건으로 간주한다.
+     * 판정은 잔존 개선(IMPROVEMENT) 결함이 없으면 통과로 본다(spec §3.1).
+     */
+    private void resolveStuckRunningReviews() {
+        List<ReviewResult> stuck = reviewRepo.findAll().stream()
+                .filter(r -> r.getStatus() == ReviewStatus.RUNNING || r.getStatus() == ReviewStatus.PENDING)
+                .toList();
+        if (stuck.isEmpty()) return;
+        for (ReviewResult r : stuck) {
+            long improvements = defectRepo.countByReviewResultIdAndSeverity(r.getId(), Severity.IMPROVEMENT);
+            r.setStatus(ReviewStatus.COMPLETED);
+            r.setPassed(improvements == 0);
+        }
+        reviewRepo.saveAll(stuck);
     }
 
     private Project seedProject(String code, String name, LocalDate start, LocalDate end) {
