@@ -49,8 +49,8 @@ window.MOCK = (function () {
     { id:5023, project:'NHOB', artifact:'프로세스정의서', code:'AN04', stage:'분석', round:1, status:'COMPLETED',
       passed:true, error:0, warn:1, date:'2026-05-06' },
     // 설계단계 (진행중 · 결함 → 시정조치)
-    { id:5031, project:'NHOB', artifact:'UI목록', code:'DS01', stage:'설계', round:1, status:'RUNNING',
-      passed:null, error:0, warn:0, date:'2026-07-08' },
+    { id:5031, project:'NHOB', artifact:'UI목록', code:'DS01', stage:'설계', round:1, status:'COMPLETED',
+      passed:true, error:0, warn:0, date:'2026-07-08' },
     { id:5032, project:'NHOB', artifact:'배치설계서', code:'DS09', stage:'설계', round:2, status:'COMPLETED',
       passed:false, error:3, warn:2, date:'2026-07-06' },
     { id:5033, project:'NHOB', artifact:'인터페이스설계서', code:'DS10', stage:'설계', round:1, status:'COMPLETED',
@@ -75,8 +75,8 @@ window.MOCK = (function () {
     // 설계단계 — 진행중
     { id:5131, project:'NHUL', artifact:'배치설계서', code:'DS09', stage:'설계', round:1, status:'COMPLETED',
       passed:false, error:4, warn:2, date:'2026-07-02' },
-    { id:5132, project:'NHUL', artifact:'배치설계서', code:'DS09', stage:'설계', round:2, status:'RUNNING',
-      passed:null, error:0, warn:0, date:'2026-07-08' },
+    { id:5132, project:'NHUL', artifact:'배치설계서', code:'DS09', stage:'설계', round:2, status:'COMPLETED',
+      passed:true, error:0, warn:0, date:'2026-07-08' },
     { id:5133, project:'NHUL', artifact:'UI목록', code:'DS01', stage:'설계', round:1, status:'COMPLETED',
       passed:false, error:2, warn:3, date:'2026-07-04' },
 
