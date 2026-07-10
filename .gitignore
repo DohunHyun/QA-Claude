@@ -43,3 +43,12 @@ Thumbs.db
 # ===== 생성 산출물(HWPX) · 로컬 사진 (git 미포함) =====
 *.hwpx
 KakaoTalk_Photo_*
+
+# ===== Node.js (의존성) =====
+node_modules/
+
+# ===== 데모 녹화 (로컬 전용, git 미포함) =====
+package.json
+package-lock.json
+record-demo*.js
+/videos/
