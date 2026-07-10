@@ -75,8 +75,8 @@ static/
 |--------|------|------|
 | `kmh`  | 김명호 | PM |
 | `park` | 박서준 | PM |
-| `hdh`  | 현도훈 | QA |
-| `khg`  | 김홍규 | 관리자 |
+| `hdh`  | 현도훈 | 관리자 |
+| `khg`  | 김홍규 | QA |
 | `client` | 고객담당 | 고객사 |
 | `user` | 일반사용자 | 일반 |
 
@@ -141,7 +141,9 @@ localStorage.removeItem('qagpt.reports')        // 검토결과서 발급 기록
 - **project-approval** (관리자) → 승인 대기 목록에서 **승인**(→ACTIVE) / **반려**(→REJECTED) → `setProjectStatus` → 목록·전체상태 갱신 + PM 알림 생성.
 - **dashboard** → 브레드크럼 제거. 상단 **품질검증 배너**(`.qbanner`, NH TMS+ 스타일 인라인 SVG). "나의 현황" 옆 **프로젝트 선택 콤보**(`#dashProjSel`) → 선택 프로젝트 기준으로 **단계 진행 스트립**(관리/분석/설계 완료·진행중·예정)과 KPI(검증 진행 중·**미조치 개선**·**미조치 권고**·누적 검토회차)를 재렌더. 알림 패널(NEW·모두 읽음), 내 프로젝트 표(코드 대신 담당 PM), 공지/ActionItem/결재.
 - **statistics** (프로젝트 현황) → `STAT_PROJECTS`(10건) 기반 **전사 포트폴리오 현황**으로 재구성. 요약 KPI(전체/진행중/누적 개선/평균 조치완료율) + **프로젝트×단계(관리·분석·설계·테스트·이행) 현황 매트릭스**(완료 done/진행중 run/예정 wait 색상 도트) + 검토·개선·권고·조치완료율. 결함유형 6종 분포·개선/권고 도넛은 실 3개 프로젝트 DEFECTS 기준. (범위 드롭다운은 제거)
-- **review-report** → **프로젝트 + 단계 그룹(분석/설계 · 테스트/이행) 선택**(`STAGE_GROUPS` 매핑). **검토 개요**(단계 정보·누적 검토회차·누적 개선·누적 권고) + 검토 항목(산출물·단계·결과·내용 — **근거 위치 제거**) + 결과물 2종(**최종 등재 산출물·검토 결과서**). QA 승인 버튼: 개선 합계 0 + 이력 존재 시 활성 → `M.issueReport` 발급·PM 알림. ⚠️ 데이터가 관리/분석/설계 기반이라 **테스트/이행 그룹은 표본 없음**(실 내용은 분석/설계).
+- **review-report** → **프로젝트 + 단계 그룹(분석/설계 · 테스트/이행) 선택**. 검토 개요 + 검토 항목(산출물·단계·내용 — 결과·근거위치 제거). **검토결과서 발급 버튼은 QA 승인 게이팅**: `GET /api/report-requests?projectId&stageGroup`로 해당 프로젝트+단계 발급 요청이 `APPROVED`일 때만 활성 → 클릭 시 `GET /api/report-requests/{id}/review-report`(집계 HWPX) 다운로드. 백엔드 미연결(정적 프리뷰)이면 목업 발급 폴백.
+  - **발급 승인 플로우(백엔드 영속)**: AI 검증(검증 현황) "검토결과서 요청"(모든 산출물 통과 시 활성) → `POST /api/report-requests` → 대시보드 "나의 결재/승인 대기"에서 **QA(김홍규)가 승인** → `POST /api/report-requests/{id}/approve` → 발급 버튼 활성. (`ReportRequest`·`ReportRequestController`)
+  - **집계 HWPX**(`HwpxReviewReportWriter.writeAggregate`): 프로젝트+분석/설계의 산출물 전체(예: NHGBS 7종) + 단계별 개선/권고 요약 + 최종 적합 + QA 승인란(검토자·**이탤릭 필기체 서명**·승인일). 항목별 결과 표 제외.
 - **validation-progress** (검증 현황) → **데이터는 `GET /api/reviews` 실 API 우선 → 실패 시 `M.REVIEWS` 목업 폴백**(정적 프리뷰에서도 동작). **프로젝트 + 단계 필터**(프로젝트는 검토 목록의 projectCode로 구성) + 진행 중 4-Phase 패널 + 검증 큐/이력(**단계·판정 컬럼**). **검토결과서 요청 버튼**: 선택 프로젝트의 관리·분석·설계 모두 완료 시 활성 → `M.addNotification` 알림. 행 클릭 → `?reviewId=`.
 - **validation-result** → **실 API 우선 + 목업 폴백**. **프로젝트 + 단계 + 회차 필터**(회차는 프로젝트별 동적, "최신" 기본) + 단계별 검토 회차 요약 + **산출물별 검토 결과(최대 4건, 선택 회차 또는 최신)** + 산출물별 **예외처리 요청**(알림) + 결함 상세(`GET /api/reviews/{id}/defects` / 목업) + 실 결과물 다운로드. `?reviewId=`(프로젝트·단계 자동)·`?projectId=` 지원.
   - ⚙️ 백엔드 `ReviewSummaryDto`에 **projectId·projectCode·projectName·stage 필드 추가**(Document→Project, ReviewResult.stage 활용 — 스키마 변경 없음)로 API 응답에서 프로젝트·단계 필터가 가능해짐.

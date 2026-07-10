@@ -225,12 +225,42 @@
         + '<td class="num"><span class="state '+st+'">'+e(a.state)+'</span></td></tr>';
     }).join('');
 
-    document.getElementById('approvals').innerHTML = M.APPROVALS.map(function(a){
-      var href = a.type === '프로젝트 신청' ? 'project-approval.html' : 'review-report.html';
-      return '<tr><td class="num"><span class="pill">'+e(a.type)+'</span></td><td>'+e(a.target)+'</td>'
-        + '<td class="num">'+e(a.req)+'</td><td class="num">'+e(a.date)+'</td>'
-        + '<td class="num"><a class="btn sm" href="'+href+'" data-role="QA,관리자" data-role-mode="disable">처리</a></td></tr>';
-    }).join('');
+    // 결재/승인 대기 — 백엔드 검토결과서 발급 요청(승인 대기) + 기존 목업 결재
+    function mockApprovalRows(){
+      return M.APPROVALS.map(function(a){
+        var href = a.type === '프로젝트 신청' ? 'project-approval.html' : 'review-report.html';
+        return '<tr><td class="num"><span class="pill">'+e(a.type)+'</span></td><td>'+e(a.target)+'</td>'
+          + '<td class="num">'+e(a.req)+'</td><td class="num">'+e(a.date)+'</td>'
+          + '<td class="num"><a class="btn sm" href="'+href+'" data-role="QA,관리자" data-role-mode="disable">처리</a></td></tr>';
+      }).join('');
+    }
+    function reqApprovalRow(r){
+      return '<tr><td class="num"><span class="pill">검토결과서 발급</span></td>'
+        + '<td>'+e(r.projectCode)+' · '+e(r.projectName)+' ('+e(r.stageGroup)+')</td>'
+        + '<td class="num">'+e(r.requestedBy||'')+'</td><td class="num">'+e((r.requestedAt||'').slice(0,10))+'</td>'
+        + '<td class="num"><button class="btn sm reqApprove" data-reqid="'+e(r.id)+'" data-role="QA,관리자" data-role-mode="disable">승인</button></td></tr>';
+    }
+    function renderApprovals(){
+      var box=document.getElementById('approvals');
+      fetch('/api/report-requests?status=REQUESTED')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(list){ box.innerHTML = (list||[]).map(reqApprovalRow).join('') + mockApprovalRows();
+          if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('approval')); })
+        .catch(function(){ box.innerHTML = mockApprovalRows();
+          if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('approval')); });
+    }
+    renderApprovals();
+    // 승인 처리 (QA=김홍규) — 이벤트 위임
+    document.getElementById('approvals').addEventListener('click', function(ev){
+      var btn=ev.target.closest('.reqApprove'); if(!btn || btn.disabled) return;
+      var id=btn.getAttribute('data-reqid');
+      if(!confirm('이 검토결과서 발급 요청을 승인하시겠습니까?')) return;
+      fetch('/api/report-requests/'+id+'/approve', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ approvedBy:(me||'QA') }) })
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(){ alert('승인했습니다. 해당 프로젝트에서 검토결과서 발급이 가능합니다.'); renderApprovals(); })
+        .catch(function(){ alert('승인 처리에 실패했습니다. (백엔드 연결이 필요합니다)'); });
+    });
   </script>
 </body>
 </html>

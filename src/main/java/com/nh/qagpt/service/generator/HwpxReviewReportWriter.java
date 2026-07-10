@@ -6,9 +6,11 @@ import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.domain.enums.ArtifactType;
 import com.nh.qagpt.domain.enums.Severity;
+import com.nh.qagpt.domain.enums.Stage;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.CRC32;
@@ -48,7 +50,11 @@ public class HwpxReviewReportWriter {
             + "xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\"";
 
     public byte[] write(ReviewResult result) {
-        List<String> lines = buildLines(result);
+        return pack(sectionXml(result), buildLines(result));
+    }
+
+    /** HWPX ZIP 패키징 (본문 section 바이트 + 미리보기 라인 → .hwpx). write/writeAggregate 공용. */
+    private byte[] pack(byte[] sectionBytes, List<String> lines) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(out)) {
 
@@ -56,7 +62,7 @@ public class HwpxReviewReportWriter {
             stored(zip, "mimetype", "application/hwp+zip".getBytes(StandardCharsets.US_ASCII));
             deflated(zip, "version.xml", versionXml());
             deflated(zip, "Contents/header.xml", headerXml());
-            deflated(zip, "Contents/section0.xml", sectionXml(result));
+            deflated(zip, "Contents/section0.xml", sectionBytes);
             deflated(zip, "Preview/PrvText.txt", prvText(lines));
             deflated(zip, "settings.xml", settingsXml());
             deflated(zip, "META-INF/container.xml", containerXml());
@@ -200,11 +206,12 @@ public class HwpxReviewReportWriter {
         }
         borderFills.append("</hh:borderFills>");
 
-        // charPr: 0=본문(1000), 1=제목(2000 bold), 2=표머리(1000 bold). bold는 offset 뒤 <hh:bold/>(실측).
-        String charProperties = "<hh:charProperties itemCnt=\"3\">"
-                + charPr(0, 1000, false)
-                + charPr(1, 2000, true)
-                + charPr(2, 1000, true)
+        // charPr: 0=본문(1000), 1=제목(2000 bold), 2=표머리(1000 bold), 3=서명(1000 italic 필기체 느낌).
+        String charProperties = "<hh:charProperties itemCnt=\"4\">"
+                + charPr(0, 1000, false, false)
+                + charPr(1, 2000, true, false)
+                + charPr(2, 1000, true, false)
+                + charPr(3, 1400, false, true)
                 + "</hh:charProperties>";
 
         String tabProperties = "<hh:tabProperties itemCnt=\"1\">"
@@ -228,8 +235,8 @@ public class HwpxReviewReportWriter {
                 + "</hh:refList></hh:head>");
     }
 
-    /** 글자모양 정의 (실측 자식 순서: fontRef→ratio→spacing→relSz→offset→[bold]). */
-    private String charPr(int id, int height, boolean bold) {
+    /** 글자모양 정의 (실측 자식 순서: fontRef→ratio→spacing→relSz→offset→[bold]→[italic]). */
+    private String charPr(int id, int height, boolean bold, boolean italic) {
         return "<hh:charPr id=\"" + id + "\" height=\"" + height + "\" textColor=\"#000000\" shadeColor=\"none\" "
                 + "useFontSpace=\"0\" useKerning=\"0\" symMark=\"NONE\" borderFillIDRef=\"3\">"
                 + "<hh:fontRef hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
@@ -238,6 +245,7 @@ public class HwpxReviewReportWriter {
                 + "<hh:relSz hangul=\"100\" latin=\"100\" hanja=\"100\" japanese=\"100\" other=\"100\" symbol=\"100\" user=\"100\"/>"
                 + "<hh:offset hangul=\"0\" latin=\"0\" hanja=\"0\" japanese=\"0\" other=\"0\" symbol=\"0\" user=\"0\"/>"
                 + (bold ? "<hh:bold/>" : "")
+                + (italic ? "<hh:italic/>" : "")
                 + "</hh:charPr>";
     }
 
@@ -263,7 +271,8 @@ public class HwpxReviewReportWriter {
      * 본문 렌더 — 제목(굵게·크게·가운데) + 문서정보/요약 문단 + 항목별 결과 표 + 최종평가/QA 서명란.
      * 첫 문단(제목) 첫 run에 secPr(A4 용지)+colPr(1단)을 부착한다(한컴 필수 패턴, 실측).
      */
-    private byte[] sectionXml(ReviewResult result) {
+    /** 첫 문단 첫 run에 부착하는 섹션설정(A4 용지 secPr + 1단 colPr). write/aggregate 공용. */
+    private String sectionSettings() {
         String secPr = "<hp:secPr id=\"\" textDirection=\"HORIZONTAL\" spaceColumns=\"1130\" tabStop=\"8000\" "
                 + "outlineShapeIDRef=\"1\" memoShapeIDRef=\"0\" textVerticalWidthHead=\"0\" masterPageCnt=\"0\">"
                 + "<hp:grid lineGrid=\"0\" charGrid=\"0\" wonggojiFormat=\"0\"/>"
@@ -293,7 +302,10 @@ public class HwpxReviewReportWriter {
                 + "</hp:secPr>";
         String colPr = "<hp:ctrl><hp:colPr id=\"\" type=\"NEWSPAPER\" layout=\"LEFT\" colCount=\"1\" "
                 + "sameSz=\"1\" sameGap=\"0\"/></hp:ctrl>";
+        return secPr + colPr;
+    }
 
+    private byte[] sectionXml(ReviewResult result) {
         List<Defect> defects = result.getDefects();
         long improvements = defects.stream().filter(d -> d.getSeverity() == Severity.IMPROVEMENT).count();
         long recommendations = defects.size() - improvements;
@@ -306,7 +318,7 @@ public class HwpxReviewReportWriter {
 
         Counter pid = new Counter();
         // 제목(굵게·크게·가운데) — 첫 문단 첫 run에 섹션 설정 부착(실측 필수 패턴)
-        sb.append(para(pid.next(), "단계말 검토결과서", 1, 1, secPr + colPr));
+        sb.append(para(pid.next(), "단계말 검토결과서", 1, 1, sectionSettings()));
         sb.append(para(pid.next(), "", 0, 1, null));
 
         // 문서 정보
@@ -351,6 +363,129 @@ public class HwpxReviewReportWriter {
 
         sb.append("</hs:sec>");
         return utf8(sb.toString());
+    }
+
+    // ── 집계(프로젝트+단계그룹) 검토결과서 ─────────────────────────
+    /**
+     * 프로젝트+단계그룹(분석/설계) 단위 집계 검토결과서 HWPX.
+     * 대상 산출물 전체 + 단계별 개선/권고 요약 + 최종 적합 + QA 승인(검토자·필기체 서명·승인일).
+     * 발급 시점엔 적합(부적합 없음)이므로 항목별 결과(표)는 포함하지 않는다.
+     */
+    public byte[] writeAggregate(Project project, String stageGroup, List<ReviewResult> reviews,
+                                 String approverName, LocalDate approvedDate) {
+        return pack(sectionAggregate(project, stageGroup, reviews, approverName, approvedDate),
+                linesAggregate(project, stageGroup, reviews, approverName, approvedDate));
+    }
+
+    /** 단계별 [개선, 권고] 결함 수. */
+    private int[] stageCounts(List<ReviewResult> reviews, Stage stage) {
+        int imp = 0, rec = 0;
+        for (ReviewResult r : reviews) {
+            if (r.getStage() != stage) continue;
+            for (Defect d : r.getDefects()) {
+                if (d.getSeverity() == Severity.IMPROVEMENT) imp++;
+                else rec++;
+            }
+        }
+        return new int[]{imp, rec};
+    }
+
+    private byte[] sectionAggregate(Project project, String stageGroup, List<ReviewResult> reviews,
+                                    String approverName, LocalDate approvedDate) {
+        int[] an = stageCounts(reviews, Stage.ANALYSIS);
+        int[] ds = stageCounts(reviews, Stage.DESIGN);
+        int total = an[0] + an[1] + ds[0] + ds[1];
+        String pName = safe(project == null ? null : project.getName());
+        String pCode = safe(project == null ? null : project.getCode());
+        String approveDateStr = approvedDate == null ? "__________" : approvedDate.toString();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>");
+        sb.append("<hs:sec ").append(NS_ALL).append(">");
+
+        Counter pid = new Counter();
+        sb.append(para(pid.next(), "단계말 검토결과서", 1, 1, sectionSettings()));
+        sb.append(para(pid.next(), "", 0, 1, null));
+        sb.append(para(pid.next(), "프로젝트: " + pName + " (" + pCode + ")", 0, 0, null));
+        sb.append(para(pid.next(), "검증 단계: " + safe(stageGroup), 0, 0, null));
+        sb.append(para(pid.next(), "검토자: " + safe(approverName), 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 1. 검증 대상 산출물 (분석/설계 산출물 전체)
+        sb.append(para(pid.next(), "1. 검증 대상 산출물", 2, 0, null));
+        for (ReviewResult r : reviews) {
+            Document doc = r.getDocument();
+            sb.append(para(pid.next(), "- " + artifactLabel(doc) + " / "
+                    + safe(doc == null ? null : doc.getFileName()), 0, 0, null));
+        }
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 2. 단계 결과 요약
+        sb.append(para(pid.next(), "2. 단계 결과 요약", 2, 0, null));
+        sb.append(para(pid.next(), "- 총 " + total + "건", 0, 0, null));
+        sb.append(para(pid.next(), "- 분석단계: 개선 " + an[0] + "건, 권고 " + an[1] + "건", 0, 0, null));
+        sb.append(para(pid.next(), "- 설계단계: 개선 " + ds[0] + "건, 권고 " + ds[1] + "건", 0, 0, null));
+        sb.append(para(pid.next(), "- 최종 결과: 적합", 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 3. 최종 평가
+        sb.append(para(pid.next(), "3. 최종 평가", 2, 0, null));
+        sb.append(para(pid.next(), "- 적합 (부적합 없음)", 0, 0, null));
+        sb.append(para(pid.next(), "", 0, 0, null));
+
+        // 4. QA 승인
+        sb.append(para(pid.next(), "4. QA 승인", 2, 0, null));
+        sb.append(para(pid.next(), "- QA 검토자: " + safe(approverName), 0, 0, null));
+        sb.append(paraSign(pid.next(), "- 서명: ", safe(approverName)));
+        sb.append(para(pid.next(), "- 승인일: " + approveDateStr, 0, 0, null));
+        sb.append(para(pid.next(), "- QA 승인 여부: 승인", 0, 0, null));
+
+        sb.append("</hs:sec>");
+        return utf8(sb.toString());
+    }
+
+    /** 미리보기(PrvText)용 라인 — sectionAggregate와 동일 내용. */
+    private List<String> linesAggregate(Project project, String stageGroup, List<ReviewResult> reviews,
+                                        String approverName, LocalDate approvedDate) {
+        int[] an = stageCounts(reviews, Stage.ANALYSIS);
+        int[] ds = stageCounts(reviews, Stage.DESIGN);
+        int total = an[0] + an[1] + ds[0] + ds[1];
+        List<String> lines = new ArrayList<>();
+        lines.add("단계말 검토결과서");
+        lines.add("");
+        lines.add("프로젝트: " + safe(project == null ? null : project.getName())
+                + " (" + safe(project == null ? null : project.getCode()) + ")");
+        lines.add("검증 단계: " + safe(stageGroup));
+        lines.add("검토자: " + safe(approverName));
+        lines.add("");
+        lines.add("1. 검증 대상 산출물");
+        for (ReviewResult r : reviews) {
+            Document doc = r.getDocument();
+            lines.add("- " + artifactLabel(doc) + " / " + safe(doc == null ? null : doc.getFileName()));
+        }
+        lines.add("");
+        lines.add("2. 단계 결과 요약");
+        lines.add("- 총 " + total + "건");
+        lines.add("- 분석단계: 개선 " + an[0] + "건, 권고 " + an[1] + "건");
+        lines.add("- 설계단계: 개선 " + ds[0] + "건, 권고 " + ds[1] + "건");
+        lines.add("- 최종 결과: 적합");
+        lines.add("");
+        lines.add("3. 최종 평가");
+        lines.add("- 적합 (부적합 없음)");
+        lines.add("");
+        lines.add("4. QA 승인");
+        lines.add("- QA 검토자: " + safe(approverName));
+        lines.add("- 서명: " + safe(approverName));
+        lines.add("- 승인일: " + (approvedDate == null ? "__________" : approvedDate.toString()));
+        lines.add("- QA 승인 여부: 승인");
+        return lines;
+    }
+
+    /** 라벨(정자) + 서명(이탤릭 필기체 느낌) 2-run 문단. */
+    private String paraSign(int id, String label, String sign) {
+        return "<hp:p id=\"" + id + "\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\">"
+                + "<hp:run charPrIDRef=\"0\"><hp:t>" + escape(label) + "</hp:t></hp:run>"
+                + "<hp:run charPrIDRef=\"3\"><hp:t>" + escape(sign) + "</hp:t></hp:run></hp:p>";
     }
 
     /** 단순 문단. firstRunExtra는 첫 run 앞에 삽입되는 컨트롤(섹션설정 등, 없으면 null). */
