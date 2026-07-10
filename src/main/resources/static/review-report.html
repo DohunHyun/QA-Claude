@@ -117,47 +117,54 @@
 
       document.getElementById('detail').innerHTML=html;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
+      updateIssueBtn();
     }
 
-    // 검토결과서 발급 (페이지 헤더 버튼) — 선택 프로젝트·단계의 실 검토를 QA 승인 후 HWPX 다운로드.
-    // 백엔드 미연동/무이력 시 mock 발급 기록으로 폴백.
-    function mockIssue(p, stage, name, extra){
-      M.issueReport(p, stage, name);
-      render();
-      if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-      alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.' + (extra || ''));
-    }
-    document.getElementById('issueBtn').addEventListener('click', function(){
-      var p = curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
-      var stage = document.getElementById('stageSel').value;
-      var name = (u.name || 'QA');
-      if(!confirm('['+p.code+'] '+stage+' 단계 검토결과서를 발급하시겠습니까?\n검증자: '+name)) return;
-      var sts = groupStages(stage);
-      fetch('/api/reviews')
-        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
-        .then(function(list){
-          var cand = list.filter(function(x){ return x.projectCode===p.code
-              && sts.indexOf(x.stage)!==-1 && x.status==='COMPLETED'; })
-            .sort(function(a,b){ return b.reviewId-a.reviewId; });
-          if(!cand.length) throw new Error('no-review');
-          var rid = cand[0].reviewId;
-          // QA 승인(개선 잔존 시 예외 승인) 후 HWPX 다운로드
-          return fetch('/api/reviews/'+rid+'/approve?exception=true', { method:'POST' })
-            .then(function(res){ if(!res.ok) throw new Error('approve-failed'); })
-            .then(function(){
-              var a=document.createElement('a');
-              a.href='/api/reviews/'+rid+'/review-report';
-              a.download='';   // 서버 파일명(Content-Disposition) 사용
-              document.body.appendChild(a); a.click(); document.body.removeChild(a);
-              M.issueReport(p, stage, name);
-              render();
-              if (window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-            });
+    // 발급 버튼 게이팅 — QA 승인된 발급 요청이 있어야 활성화.
+    var issueBtn=document.getElementById('issueBtn');
+    var currentReq=null;   // 현재 프로젝트+단계의 승인된 발급 요청
+    var offlineDemo=false; // 백엔드 미연결(정적 프리뷰) 여부
+    function updateIssueBtn(){
+      currentReq=null; offlineDemo=false;
+      var p=curProject(); if(!p){ issueBtn.disabled=true; return; }
+      var stage=document.getElementById('stageSel').value;
+      issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.';
+      fetch('/api/projects')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(projs){
+          var bp=(projs||[]).filter(function(x){ return x.code===p.code; })[0];
+          if(!bp) throw new Error('no-project');
+          return fetch('/api/report-requests?projectId='+bp.id+'&stageGroup='+encodeURIComponent(stage))
+            .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); });
         })
-        .catch(function(err){
-          mockIssue(p, stage, name, (err && err.message==='no-review')
-            ? '\n(다운로드할 실제 검토 회차가 없어 발급 기록만 저장했습니다.)' : '');
+        .then(function(reqs){
+          var appr=(reqs||[]).filter(function(r){ return r.status==='APPROVED'; })[0];
+          if(appr){ currentReq=appr; issueBtn.disabled=false; issueBtn.title='QA 승인 완료 — 발급 가능'; }
+          else { issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.'; }
+        })
+        .catch(function(){
+          // 백엔드 없음(정적 프리뷰) → 데모용으로 발급 허용(목업 발급)
+          offlineDemo=true; issueBtn.disabled=false; issueBtn.title='(오프라인 데모 — 목업 발급)';
         });
+    }
+    issueBtn.addEventListener('click', function(){
+      var p=curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
+      var stage=document.getElementById('stageSel').value;
+      if(currentReq){
+        // 승인된 요청 → 집계 HWPX 다운로드
+        var a=document.createElement('a');
+        a.href='/api/report-requests/'+currentReq.id+'/review-report';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        M.issueReport(p, stage, currentReq.approvedBy||'QA');
+        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+        return;
+      }
+      if(offlineDemo){
+        if(!confirm('['+p.code+'] '+stage+' 검토결과서를 발급하시겠습니까?(오프라인 목업)')) return;
+        M.issueReport(p, stage, (u.name||'QA')); render();
+        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+        alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.(오프라인 목업)');
+      }
     });
   </script>
 </body>

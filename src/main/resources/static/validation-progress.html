@@ -37,18 +37,18 @@
     var params = new URLSearchParams(location.search);
     var ALL = [];   // 정규화된 검토 목록(프로젝트·단계 포함)
 
-    var PNAME = {}; M.PROJECTS.forEach(function(p){ PNAME[p.code]=p.name; });
+    var PNAME = {}, PID = {}; M.PROJECTS.forEach(function(p){ PNAME[p.code]=p.name; PID[p.code]=p.id; });
 
     function fmtDate(iso){ return iso ? String(iso).replace('T',' ').replace('Z','').slice(0,16) : '-'; }
     function stageOf(type){ var a=M.ARTIFACTS.filter(function(x){return x.type===type;})[0]; return a?a.stage:'-'; }
     function normApi(r){
-      return { reviewId:r.reviewId, artifactLabel:r.artifactLabel||'미분류', fileName:r.fileName,
+      return { reviewId:r.reviewId, projectId:r.projectId, artifactLabel:r.artifactLabel||'미분류', fileName:r.fileName,
         projectCode:r.projectCode||'미지정', projectName:r.projectName||'미지정 프로젝트',
         stage:r.stage||stageOf(r.artifactType), round:r.round, status:r.status, passed:r.passed,
         defectCount:r.defectCount, createdAt:r.createdAt };
     }
     function normMock(r){
-      return { reviewId:r.id, artifactLabel:r.artifact, fileName:'', projectCode:r.project,
+      return { reviewId:r.id, projectId:PID[r.project], artifactLabel:r.artifact, fileName:'', projectCode:r.project,
         projectName:PNAME[r.project]||r.project, stage:r.stage, round:r.round, status:r.status,
         passed:r.passed, defectCount:(r.error||0)+(r.warn||0), createdAt:r.date };
     }
@@ -117,18 +117,31 @@
       var rs=ALL.filter(function(r){ return r.projectCode===code && r.stage===st; });
       return rs.length>0 && !rs.some(function(r){ return r.status==='RUNNING'||r.status==='PENDING'; });
     }
+    // 모든 산출물(회차) 통과 시 요청 가능
+    function allPassed(code){
+      var rs=ALL.filter(function(r){ return r.projectCode===code; });
+      return rs.length>0 && rs.every(function(r){ return r.status==='COMPLETED' && r.passed; });
+    }
     function updateReportBtn(code){
       var btn=document.getElementById('reqReportBtn');
-      var allDone=['관리','분석','설계'].every(function(st){ return stageDone(code, st); });
-      btn.disabled=!allDone;
-      btn.title=allDone?'':'관리·분석·설계 단계가 모두 완료되어야 요청할 수 있습니다.';
-      btn.onclick=allDone?function(){
-        if(!confirm('['+code+'] 검토결과서를 요청하시겠습니까?\nQA 승인 후 발급됩니다.')) return;
-        M.addNotification({ to:(u.name||'QA'), type:'report', title:'검토결과서 요청 접수',
-          message:'['+code+'] '+(PNAME[code]||code)+' 검토결과서 발급 요청이 접수되었습니다.',
-          projectCode:code, by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
-        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-        alert('검토결과서를 요청했습니다. 이후 진행은 알림으로 안내됩니다.');
+      var ok=allPassed(code);
+      btn.disabled=!ok;
+      btn.title=ok?'':'모든 산출물이 통과되어야 검토결과서를 요청할 수 있습니다.';
+      btn.onclick=ok?function(){
+        if(!confirm('['+code+'] 검토결과서 발급을 요청하시겠습니까?\nQA 승인 후 발급됩니다.')) return;
+        var pid=(ALL.filter(function(r){return r.projectCode===code;})[0]||{}).projectId;
+        fetch('/api/report-requests', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ projectId:String(pid), stageGroup:'분석/설계', requestedBy:(u.name||'PM') }) })
+          .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+          .then(function(){ alert('검토결과서 발급을 요청했습니다. QA 승인 후 발급됩니다.'); })
+          .catch(function(){
+            // 백엔드 미연결(정적 프리뷰) → 목업 알림 폴백
+            M.addNotification({ to:'김홍규', type:'report', title:'검토결과서 발급 요청',
+              message:'['+code+'] '+(PNAME[code]||code)+' 검토결과서 발급 요청이 접수되었습니다.',
+              projectCode:code, by:(u.name||'PM'), at:new Date().toISOString().slice(0,10) });
+            if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+            alert('검토결과서 발급을 요청했습니다.(오프라인 — 목업 알림)');
+          });
       }:null;
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.querySelector('.page-head'));
     }
