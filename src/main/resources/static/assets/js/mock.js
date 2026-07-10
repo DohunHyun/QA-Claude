@@ -482,11 +482,29 @@ window.MOCK = (function () {
     return REVIEWS.filter(function (r){ return codes.indexOf(r.project) !== -1; });
   }
 
+  // 백엔드 /api/projects 를 단일 소스로 사용(표시필드 pm/stage/progress/기간은 목업 코드매칭으로 보강).
+  //   화면 간 프로젝트 목록 불일치를 없애기 위해 목록 화면들이 공통으로 이 함수를 쓴다.
+  //   백엔드 미연결(정적 프리뷰) 시 목업 전체로 폴백. 결과를 cb(list)로 전달.
+  function loadProjects(cb){
+    fetch('/api/projects')
+      .then(function (r){ if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (api){
+        var byCode = {}; allProjects().forEach(function (m){ byCode[m.code] = m; });
+        cb((api || []).map(function (p){
+          var m = byCode[p.code] || {};
+          return { id:p.id, code:p.code, name:p.name || m.name || p.code, status:p.status,
+            pm:m.pm || '-', stage:m.stage || '-', progress:(m.progress != null ? m.progress : 0),
+            start:m.start || '', end:m.end || '' };
+        }));
+      })
+      .catch(function (){ cb(allProjects()); });
+  }
+
   return {
     ARTIFACTS: ARTIFACTS, PROJECTS: PROJECTS, REVIEWS: REVIEWS, DEFECTS: DEFECTS, LEDGER: LEDGER,
     NOTICES: NOTICES, ACTIONS: ACTIONS, APPROVALS: APPROVALS, STAT_PROJECTS: STAT_PROJECTS,
     currentUser: currentUser, visibleProjects: visibleProjects, visibleReviews: visibleReviews,
-    allProjects: allProjects, addProject: addProject,
+    allProjects: allProjects, addProject: addProject, loadProjects: loadProjects,
     pendingProjects: pendingProjects, setProjectStatus: setProjectStatus, validatableProjects: validatableProjects,
     defectsFor: defectsFor,
     pendingReviews: pendingReviews, pendingReviewsFor: pendingReviewsFor,

@@ -49,28 +49,29 @@
   <script>
     var M = window.MOCK, e = M.esc;
     var u = M.currentUser() || {};
-    var list = M.visibleProjects();
-    document.getElementById('cnt').textContent = list.length;
-    document.getElementById('scopeTag').innerHTML = (u.role === 'PM')
-      ? '<span class="pill g">내 프로젝트만</span> '
-      : '<span class="pill g">전체 프로젝트</span> ';
-    if (!list.length) {
-      document.getElementById('rows').innerHTML =
-        '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">담당 중인 프로젝트가 없습니다.</td></tr>';
-    } else
-    document.getElementById('rows').innerHTML = list.map(function(p,i){
-      return '<tr>'
-        + '<td class="num">'+(i+1)+'</td>'
-        + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
-        + '<td><a href="project-detail.html?projectId='+p.id+'"><b>'+e(p.name)+'</b></a></td>'
-        + '<td class="num">'+e(p.pm)+'</td>'
-        + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
-        + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div><span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
-        + '<td class="num muted" style="font-size:11px">'+e(p.start)+'<br>~ '+e(p.end)+'</td>'
-        + '<td class="num">'+M.stateHtml(p.status)+'</td>'
-        + '<td class="num"><a class="btn sm sec" href="project-detail.html?projectId='+p.id+'">현황</a></td>'
-        + '</tr>';
-    }).join('');
+    document.getElementById('scopeTag').innerHTML = '<span class="pill g">전체 프로젝트 · DB</span> ';
+    // 백엔드 /api/projects 단일 소스(검증 현황·단계별 검증과 동일) — 목업 폴백.
+    M.loadProjects(function(list){
+      document.getElementById('cnt').textContent = list.length;
+      if (!list.length) {
+        document.getElementById('rows').innerHTML =
+          '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">등록된 프로젝트가 없습니다.</td></tr>';
+        return;
+      }
+      document.getElementById('rows').innerHTML = list.map(function(p,i){
+        return '<tr>'
+          + '<td class="num">'+(i+1)+'</td>'
+          + '<td class="num"><span class="pill">'+e(p.code)+'</span></td>'
+          + '<td><a href="project-detail.html?projectId='+p.id+'"><b>'+e(p.name)+'</b></a></td>'
+          + '<td class="num">'+e(p.pm)+'</td>'
+          + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
+          + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div><span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
+          + '<td class="num muted" style="font-size:11px">'+e(p.start)+'<br>~ '+e(p.end)+'</td>'
+          + '<td class="num">'+M.stateHtml(p.status)+'</td>'
+          + '<td class="num"><a class="btn sm sec" href="project-detail.html?projectId='+p.id+'">현황</a></td>'
+          + '</tr>';
+      }).join('');
+    });
   </script>
 </body>
 </html>
