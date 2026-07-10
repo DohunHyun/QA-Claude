@@ -19,7 +19,6 @@
       <div class="fg"><label>프로젝트</label><select id="projSel" style="max-width:300px"></select></div>
       <div class="fg"><label>단계</label><select id="stageSel"><option value="분석/설계">분석/설계</option><option value="테스트/이행">테스트/이행</option></select></div>
       <div class="spacer"></div>
-      <span class="muted" id="scopeTag"></span>
     </div>
 
     <div id="detail"></div>
@@ -85,9 +84,6 @@
         alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.(오프라인 목업)');
       }
     });
-
-    document.getElementById('scopeTag').innerHTML=(u.role==='PM')
-      ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
 
     if(!list.length){
       document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
