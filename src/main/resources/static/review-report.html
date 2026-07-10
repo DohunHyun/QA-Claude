@@ -11,7 +11,7 @@
     <div class="crumb"><span class="home">HOME</span><span class="sep">›</span> 검토결과서 <span class="sep">›</span> 단계말 검토결과서</div>
     <div class="page-head">
       <div><h1>단계말 검토결과서</h1><p>프로젝트·단계별 최종 검토 요약과 QA 승인. (HWPX 발급 · 고객사 제출용)</p></div>
-      <div class="btn-row"><button class="btn" id="issueBtn">검토결과서 발급</button></div>
+      <div class="btn-row"><button class="btn" id="issueBtn" disabled title="QA 승인 후 발급할 수 있습니다.">검토결과서 발급</button></div>
     </div>
 
     <!-- 프로젝트 / 단계 선택 -->
@@ -35,6 +35,56 @@
     var params=new URLSearchParams(location.search);
     // 단계 그룹 — 검토결과서는 분석/설계, 테스트/이행 2개 그룹으로 표기
     var STAGE_GROUPS = { '분석/설계':['분석','설계'], '테스트/이행':['테스트','이행'] };
+
+    // 발급 버튼 게이팅 — QA 승인된 발급 요청이 있어야 활성화.
+    // (선언·클릭 핸들러 등록은 반드시 최초 render() 호출보다 먼저 실행돼야 한다.
+    //  var issueBtn 이 render() 이후에 있으면 호이스팅으로 undefined 상태라 updateIssueBtn 에서 예외가 나고
+    //  이후 클릭 핸들러 등록이 통째로 건너뛰어져 버튼이 항상 활성·클릭 무반응이 된다.)
+    var issueBtn=document.getElementById('issueBtn');
+    var currentReq=null;   // 현재 프로젝트+단계의 승인된 발급 요청
+    var offlineDemo=false; // 백엔드 미연결(정적 프리뷰) 여부
+    function updateIssueBtn(){
+      currentReq=null; offlineDemo=false;
+      var p=curProject(); if(!p){ issueBtn.disabled=true; return; }
+      var stage=document.getElementById('stageSel').value;
+      issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.';
+      fetch('/api/projects')
+        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+        .then(function(projs){
+          var bp=(projs||[]).filter(function(x){ return x.code===p.code; })[0];
+          if(!bp) throw new Error('no-project');
+          return fetch('/api/report-requests?projectId='+bp.id+'&stageGroup='+encodeURIComponent(stage))
+            .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); });
+        })
+        .then(function(reqs){
+          var appr=(reqs||[]).filter(function(r){ return r.status==='APPROVED'; })[0];
+          if(appr){ currentReq=appr; issueBtn.disabled=false; issueBtn.title='QA 승인 완료 — 발급 가능'; }
+          else { issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.'; }
+        })
+        .catch(function(){
+          // 백엔드 없음(정적 프리뷰) → 데모용으로 발급 허용(목업 발급)
+          offlineDemo=true; issueBtn.disabled=false; issueBtn.title='(오프라인 데모 — 목업 발급)';
+        });
+    }
+    issueBtn.addEventListener('click', function(){
+      var p=curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
+      var stage=document.getElementById('stageSel').value;
+      if(currentReq){
+        // 승인된 요청 → 집계 HWPX 다운로드
+        var a=document.createElement('a');
+        a.href='/api/report-requests/'+currentReq.id+'/review-report';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        M.issueReport(p, stage, currentReq.approvedBy||'QA');
+        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+        return;
+      }
+      if(offlineDemo){
+        if(!confirm('['+p.code+'] '+stage+' 검토결과서를 발급하시겠습니까?(오프라인 목업)')) return;
+        M.issueReport(p, stage, (u.name||'QA')); render();
+        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
+        alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.(오프라인 목업)');
+      }
+    });
 
     document.getElementById('scopeTag').innerHTML=(u.role==='PM')
       ? '<span class="pill g">내 프로젝트</span>' : '<span class="pill g">전체 프로젝트</span>';
@@ -119,53 +169,6 @@
       if(window.QAGPT_LAYOUT) window.QAGPT_LAYOUT.applyRoleGates(document.getElementById('detail'));
       updateIssueBtn();
     }
-
-    // 발급 버튼 게이팅 — QA 승인된 발급 요청이 있어야 활성화.
-    var issueBtn=document.getElementById('issueBtn');
-    var currentReq=null;   // 현재 프로젝트+단계의 승인된 발급 요청
-    var offlineDemo=false; // 백엔드 미연결(정적 프리뷰) 여부
-    function updateIssueBtn(){
-      currentReq=null; offlineDemo=false;
-      var p=curProject(); if(!p){ issueBtn.disabled=true; return; }
-      var stage=document.getElementById('stageSel').value;
-      issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.';
-      fetch('/api/projects')
-        .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
-        .then(function(projs){
-          var bp=(projs||[]).filter(function(x){ return x.code===p.code; })[0];
-          if(!bp) throw new Error('no-project');
-          return fetch('/api/report-requests?projectId='+bp.id+'&stageGroup='+encodeURIComponent(stage))
-            .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); });
-        })
-        .then(function(reqs){
-          var appr=(reqs||[]).filter(function(r){ return r.status==='APPROVED'; })[0];
-          if(appr){ currentReq=appr; issueBtn.disabled=false; issueBtn.title='QA 승인 완료 — 발급 가능'; }
-          else { issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.'; }
-        })
-        .catch(function(){
-          // 백엔드 없음(정적 프리뷰) → 데모용으로 발급 허용(목업 발급)
-          offlineDemo=true; issueBtn.disabled=false; issueBtn.title='(오프라인 데모 — 목업 발급)';
-        });
-    }
-    issueBtn.addEventListener('click', function(){
-      var p=curProject(); if(!p){ alert('발급할 프로젝트를 선택하세요.'); return; }
-      var stage=document.getElementById('stageSel').value;
-      if(currentReq){
-        // 승인된 요청 → 집계 HWPX 다운로드
-        var a=document.createElement('a');
-        a.href='/api/report-requests/'+currentReq.id+'/review-report';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        M.issueReport(p, stage, currentReq.approvedBy||'QA');
-        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-        return;
-      }
-      if(offlineDemo){
-        if(!confirm('['+p.code+'] '+stage+' 검토결과서를 발급하시겠습니까?(오프라인 목업)')) return;
-        M.issueReport(p, stage, (u.name||'QA')); render();
-        if(window.QAGPT_BELL) window.QAGPT_BELL.refresh();
-        alert('['+p.code+'] '+stage+' 단계 검토결과서를 발급했습니다.(오프라인 목업)');
-      }
-    });
   </script>
 </body>
 </html>
