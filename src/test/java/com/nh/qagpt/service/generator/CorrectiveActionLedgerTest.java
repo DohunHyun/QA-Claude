@@ -1,9 +1,11 @@
 package com.nh.qagpt.service.generator;
 
+import com.nh.qagpt.domain.CorrectiveAction;
 import com.nh.qagpt.domain.Defect;
 import com.nh.qagpt.domain.Document;
 import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
+import com.nh.qagpt.domain.enums.ActionStatus;
 import com.nh.qagpt.domain.enums.ArtifactType;
 import com.nh.qagpt.domain.enums.DefectType;
 import com.nh.qagpt.domain.enums.Perspective;
@@ -17,6 +19,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -139,6 +144,47 @@ class CorrectiveActionLedgerTest {
             assertThat(cell(action, 0, 4)).isEqualTo("0");
             assertThat(cell(action, 0, 11)).isEqualTo("0");
             assertThat(action.getRow(3)).isNull(); // 데이터 행 없음
+        }
+    }
+
+    private CorrectiveAction action(String no, Severity sev, ActionStatus status, LocalDate reviewDate) {
+        CorrectiveAction a = new CorrectiveAction();
+        a.setNo(no);
+        a.setBusinessName("개발산출물");
+        a.setImprovementType(sev);
+        a.setStatus(status);
+        a.setReviewDate(reviewDate);
+        a.setArtifactName("배치설계서");
+        if (status == ActionStatus.DONE) {
+            a.setConfirmedDate(reviewDate.plusDays(2));
+        }
+        return a;
+    }
+
+    @Test
+    void 프로젝트_전체_시정조치가_한_시트에_집계된다() throws Exception {
+        Project p = new Project();
+        p.setName("프로젝트X");
+        p.setCode("NHGBS");
+        // 서로 다른 검토 회차의 시정조치를 모아 프로젝트 대장으로 집계(화면 대장과 동형)
+        List<CorrectiveAction> actions = new ArrayList<>();
+        actions.add(action("CA_W01", Severity.RECOMMENDATION, ActionStatus.DONE, LocalDate.of(2026, 7, 1)));
+        actions.add(action("CA_W02", Severity.RECOMMENDATION, ActionStatus.TARGET, LocalDate.of(2026, 7, 10)));
+        actions.add(action("CA_P01", Severity.IMPROVEMENT, ActionStatus.TARGET, LocalDate.of(2026, 7, 10)));
+
+        try (Workbook wb = read(generator.generateCorrectiveActionLedger(p, actions))) {
+            Sheet s = wb.getSheet("시정조치서");
+            assertThat(cell(s, 0, 1)).isEqualTo("전체");   // 단계 = 전체(프로젝트 집계)
+            assertThat(cell(s, 0, 4)).isEqualTo("3");      // 대상 3
+            assertThat(cell(s, 0, 7)).isEqualTo("1");      // 완료 1(DONE)
+            assertThat(cell(s, 0, 11)).isEqualTo("2");     // 잔여 2
+            // 데이터 3행 모두 존재(입력 순서 유지), 4번째 행은 없음
+            assertThat(cell(s, 3, 0)).isEqualTo("CA_W01");
+            assertThat(cell(s, 4, 0)).isEqualTo("CA_W02");
+            assertThat(cell(s, 5, 0)).isEqualTo("CA_P01");
+            assertThat(s.getRow(6)).isNull();
+            // 표지: 프로젝트명·문서번호에 프로젝트 코드 반영
+            assertThat(cell(wb.getSheet("표지"), 0, 0)).isEqualTo("프로젝트X");
         }
     }
 }

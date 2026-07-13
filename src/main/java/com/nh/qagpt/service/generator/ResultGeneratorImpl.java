@@ -27,7 +27,9 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 결과물 생성 (spec §4.4). [S4] 시정조치관리대장(.xlsx) 구현.
@@ -203,20 +205,51 @@ public class ResultGeneratorImpl implements ResultGenerator {
 
     @Override
     public byte[] generateCorrectiveActionLedger(ReviewResult result) {
+        Project project = result.getProject();
+        String stageLabel = result.getStage() == null ? "" : result.getStage().getLabel();
+        return buildLedger(projectName(project), projectCode(project), stageLabel,
+                baseDate(result), loadActions(result));
+    }
+
+    /**
+     * 프로젝트 전체 시정조치관리대장 — 프로젝트의 모든 검토 회차 시정조치를 하나의 시정조치서 시트에
+     * 집계한다(화면 시정조치관리대장과 동형: 단일 검토가 아닌 프로젝트 대장 전체).
+     * 단계는 회차마다 다르므로 요약행 단계는 "전체", 기준일은 최신 검토일로 표기한다.
+     */
+    @Override
+    public byte[] generateCorrectiveActionLedger(Project project, List<CorrectiveAction> actions) {
+        LocalDate baseDate = actions.stream()
+                .map(CorrectiveAction::getReviewDate)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+        return buildLedger(projectName(project), projectCode(project), "전체", baseDate, actions);
+    }
+
+    /** 3시트(표지·개정이력·시정조치서) 워크북을 조립한다. 검토 단위/프로젝트 단위 공통 경로. */
+    private byte[] buildLedger(String projectName, String code, String stageLabel,
+                               LocalDate baseDate, List<CorrectiveAction> actions) {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             CellStyle textStyle = wb.createCellStyle();
             textStyle.setDataFormat(wb.createDataFormat().getFormat("@")); // 텍스트 서식(부동소수점 방지)
 
-            LocalDate baseDate = baseDate(result);
-            writeCoverSheet(wb, textStyle, result, baseDate);
+            writeCoverSheet(wb, textStyle, projectName, code, baseDate);
             writeRevisionSheet(wb, textStyle, baseDate);
-            writeActionSheet(wb, loadActions(result), result, baseDate);
+            writeActionSheet(wb, actions, stageLabel, baseDate);
 
             wb.write(out);
             return out.toByteArray();
         } catch (Exception e) {
             throw new IllegalStateException("시정조치관리대장 생성 실패: " + e.getMessage(), e);
         }
+    }
+
+    private String projectName(Project project) {
+        return project == null || project.getName() == null ? "" : project.getName();
+    }
+
+    private String projectCode(Project project) {
+        return project == null || project.getCode() == null ? "" : project.getCode();
     }
 
     /**
@@ -241,11 +274,8 @@ public class ResultGeneratorImpl implements ResultGenerator {
     }
 
     // ── 표지 ──────────────────────────────────────────────────────
-    private void writeCoverSheet(Workbook wb, CellStyle textStyle, ReviewResult result, LocalDate baseDate) {
+    private void writeCoverSheet(Workbook wb, CellStyle textStyle, String projectName, String code, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("표지");
-        Project project = result.getProject();
-        String projectName = project == null || project.getName() == null ? "" : project.getName();
-        String code = project == null || project.getCode() == null ? "" : project.getCode();
 
         setString(sheet, 0, 0, projectName);
         setString(sheet, 1, 0, "시정조치서");
@@ -276,13 +306,12 @@ public class ResultGeneratorImpl implements ResultGenerator {
 
     // ── 시정조치서 ─────────────────────────────────────────────────
     private void writeActionSheet(Workbook wb, List<CorrectiveAction> actions,
-                                  ReviewResult result, LocalDate baseDate) {
+                                  String stageLabel, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("시정조치서");
 
         int target = actions.size();
         int done = (int) actions.stream().filter(a -> a.getStatus() == ActionStatus.DONE).count();
         int remaining = target - done; // [spec §4.4] 완료건수 = 조치 상태(DONE) 실집계
-        String stageLabel = result.getStage() == null ? "" : result.getStage().getLabel();
 
         // r0: 요약행 (PoC 셀 위치 재현)
         Row summary = sheet.createRow(0);

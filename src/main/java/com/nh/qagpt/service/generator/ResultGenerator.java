@@ -1,6 +1,10 @@
 package com.nh.qagpt.service.generator;
 
+import com.nh.qagpt.domain.CorrectiveAction;
+import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
+
+import java.util.List;
 
 /**
  * 결과물 품질의 핵심 시임. 3종 결과물을 생성한다.
@@ -16,8 +20,11 @@ public interface ResultGenerator {
      */
     byte[] generateImprovedArtifact(ReviewResult result, byte[] originalContent, String fileName);
 
-    /** ② 시정조치관리대장 — Excel, 표지·개정이력·시정조치서 3시트(본문 17열). */
+    /** ② 시정조치관리대장 — Excel, 표지·개정이력·시정조치서 3시트(본문 17열). 단일 검토 회차 기준. */
     byte[] generateCorrectiveActionLedger(ReviewResult result);
+
+    /** ②-P 프로젝트 전체 시정조치관리대장 — 프로젝트의 모든 검토 회차 시정조치를 시정조치서 시트에 집계(화면 대장과 동형). */
+    byte[] generateCorrectiveActionLedger(Project project, List<CorrectiveAction> actions);
 
     /** ③ 단계말 검토결과서 — HWPX 공식 문서(항목별 결과·결함유형·관점·근거). */
     byte[] generateReviewReport(ReviewResult result);
