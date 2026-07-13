@@ -502,7 +502,10 @@ window.MOCK = (function () {
 
   // 검증 대상(승인 완료) 프로젝트 — 검증 현황·단계별 검증 공통 단일 소스.
   //   백엔드 /api/projects 에서 ACTIVE/APPROVED 만, 같은 code 는 1건으로 합쳐(중복 EFS 등)
-  //   두 검증 화면의 프로젝트 목록을 정확히 일치시킨다. 백엔드 미연결 시 목업 폴백.
+  //   두 검증 화면의 프로젝트 목록을 정확히 일치시킨다.
+  //   폴백은 백엔드 "미연결"(fetch 실패=.catch)일 때만. 200 빈 배열([])은 "승인 프로젝트 없음"이라는
+  //   백엔드의 정상 응답이므로 그대로 빈 목록으로 노출한다(loadProjects 와 동일 규약). 빈 응답을
+  //   목업으로 폴백하면 DB 초기화 직후 조회 계열=0건 vs 검증 계열=목업3건 불일치가 발생한다.
   function loadValidatableProjects(cb){
     fetch('/api/projects')
       .then(function (r){ if (!r.ok) throw new Error('http'); return r.json(); })
@@ -514,7 +517,7 @@ window.MOCK = (function () {
           seen[p.code] = 1;
           out.push({ id:p.id, code:p.code, name:p.name || p.code, status:p.status });
         });
-        cb(out.length ? out : validatableProjects());
+        cb(out);
       })
       .catch(function (){ cb(validatableProjects()); });
   }
