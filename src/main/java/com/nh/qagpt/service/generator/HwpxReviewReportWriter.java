@@ -39,12 +39,12 @@ public class HwpxReviewReportWriter {
     // 그대로 재사용한다. 표지 조각/헤더/로고는 아래 클래스패스 리소스에 번들되어 있다.
     private static final String TPL = "/templates/hwpx/";
     private static final DateTimeFormatter DOT_DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-    // 2페이지 본문에 쓰는 참조 헤더의 스타일 ID(실측 존재 확인): 본문 글자=2(맑은고딕 11pt),
-    // 소제목 글자=12(함초롬 14pt 굵게), 문단정렬 JUSTIFY=2 / LEFT=0.
-    private static final int BODY_CHAR = 2;
+    // 2페이지 본문 스타일 — 참조 실파일 본문(4페이지~)과 동일 ID를 그대로 사용(실측 확인):
+    // 소제목(1./2.…)=paraPr14+charPr12(함초롬 14pt 굵게), 본문=paraPr3+charPr28(함초롬 13pt).
     private static final int HEADING_CHAR = 12;
-    private static final int JUSTIFY_PARA = 2;
-    private static final int LEFT_PARA = 0;
+    private static final int HEADING_PARA = 14;
+    private static final int BODY_CHAR = 28;
+    private static final int BODY_PARA = 3;
 
     /** 한컴 실파일과 동일한 네임스페이스 셋 (head/sec 루트 공통). */
     private static final String NS_ALL =
@@ -495,6 +495,37 @@ public class HwpxReviewReportWriter {
                 + "<hp:run charPrIDRef=\"" + charPrId + "\"><hp:t>" + escape(text) + "</hp:t></hp:run></hp:p>";
     }
 
+    /**
+     * 2페이지 첫 소제목 문단. 페이지 분리 + 참조 실파일의 머리말("품질검토결과서"+밑줄)·꼬리말(쪽번호)
+     * ctrl을 첫 run에 부착한다(본문 페이지부터 적용, 표지 1페이지는 깨끗). 참조 본문과 동일 구조.
+     */
+    private String headingWithRunningHeader(String text) {
+        return "<hp:p id=\"0\" paraPrIDRef=\"" + HEADING_PARA + "\" styleIDRef=\"0\" pageBreak=\"1\" "
+                + "columnBreak=\"0\" merged=\"0\">"
+                + "<hp:run charPrIDRef=\"" + HEADING_CHAR + "\">"
+                + templateString("header-ctrl.xml") + templateString("footer-ctrl.xml") + "</hp:run>"
+                + "<hp:run charPrIDRef=\"" + HEADING_CHAR + "\"><hp:t>" + escape(text) + "</hp:t></hp:run></hp:p>";
+    }
+
+    /**
+     * 단계 결과 요약 표 — 참조 실파일 8페이지(품질점검 종합의견)의 표 디자인을 그대로 쓰고 값만 치환한다.
+     * 구조: 점검영역 | 부적합 사항(개선·권고·합계) | 비고, 데이터 3행(분석/설계/합계).
+     */
+    private String summaryTable(int[] an, int[] ds, int total) {
+        return templateString("summary-table.xml")
+                .replace("{{R2C0}}", "분석단계")
+                .replace("{{R2C1}}", String.valueOf(an[0]))
+                .replace("{{R2C2}}", String.valueOf(an[1]))
+                .replace("{{R2C3}}", String.valueOf(an[0] + an[1]))
+                .replace("{{R3C0}}", "설계단계")
+                .replace("{{R3C1}}", String.valueOf(ds[0]))
+                .replace("{{R3C2}}", String.valueOf(ds[1]))
+                .replace("{{R3C3}}", String.valueOf(ds[0] + ds[1]))
+                .replace("{{R4C1}}", String.valueOf(an[0] + ds[0]))
+                .replace("{{R4C2}}", String.valueOf(an[1] + ds[1]))
+                .replace("{{R4C3}}", String.valueOf(total));
+    }
+
     /** 단계별 [개선, 권고] 결함 수. */
     private int[] stageCounts(List<ReviewResult> reviews, Stage stage) {
         int imp = 0, rec = 0;
@@ -524,31 +555,31 @@ public class HwpxReviewReportWriter {
         // 1페이지: 참조 실파일 표지 디자인 그대로(값만 치환). secPr(용지)·로고·표는 조각에 포함.
         sb.append(renderCover(project, stageGroup, docNo, "1.0", approveDateStr));
 
-        // 2페이지: 검토결과 본문 — 참조 헤더 폰트/소제목 스타일. 첫 문단에서 페이지 분리.
-        sb.append(refPara("1. 검증 대상 산출물", HEADING_CHAR, LEFT_PARA, true));
+        // 2페이지~: 참조 실파일 본문(4페이지~) 디자인 재현.
+        // 첫 소제목 문단이 (a) 페이지 분리 (b) 상단 머리말("품질검토결과서"+밑줄)·꼬리말(쪽번호) 부착.
+        sb.append(headingWithRunningHeader("1. 검증 대상 산출물"));
         for (ReviewResult r : reviews) {
             Document doc = r.getDocument();
             sb.append(refPara("- " + artifactLabel(doc) + " / "
-                    + safe(doc == null ? null : doc.getFileName()), BODY_CHAR, JUSTIFY_PARA, false));
+                    + safe(doc == null ? null : doc.getFileName()), BODY_CHAR, BODY_PARA, false));
         }
-        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
 
-        sb.append(refPara("2. 단계 결과 요약", HEADING_CHAR, LEFT_PARA, false));
-        sb.append(refPara("- 총 " + total + "건", BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- 분석단계: 개선 " + an[0] + "건, 권고 " + an[1] + "건", BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- 설계단계: 개선 " + ds[0] + "건, 권고 " + ds[1] + "건", BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- 최종 결과: 적합", BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("", BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("2. 단계 결과 요약", HEADING_CHAR, HEADING_PARA, false));
+        sb.append(refPara("품질점검 결과 부적합 사항은 다음과 같다.", BODY_CHAR, BODY_PARA, false));
+        // 종합의견 표(참조 8페이지) 디자인 그대로, 값만 치환.
+        sb.append(summaryTable(an, ds, total));
 
-        sb.append(refPara("3. 최종 평가", HEADING_CHAR, LEFT_PARA, false));
-        sb.append(refPara("- 적합 (부적합 없음)", BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("", BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("3. 최종 평가", HEADING_CHAR, HEADING_PARA, false));
+        sb.append(refPara("- 적합 (부적합 없음)", BODY_CHAR, BODY_PARA, false));
 
-        sb.append(refPara("4. QA 승인", HEADING_CHAR, LEFT_PARA, false));
-        sb.append(refPara("- QA 검토자: " + safe(approverName), BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- 서명: " + safe(approverName), BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- 승인일: " + approveDateStr, BODY_CHAR, JUSTIFY_PARA, false));
-        sb.append(refPara("- QA 승인 여부: 승인", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("", BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("4. QA 승인", HEADING_CHAR, HEADING_PARA, false));
+        sb.append(refPara("- QA 검토자: " + safe(approverName), BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("- 서명: " + safe(approverName), BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("- 승인일: " + approveDateStr, BODY_CHAR, BODY_PARA, false));
+        sb.append(refPara("- QA 승인 여부: 승인", BODY_CHAR, BODY_PARA, false));
 
         sb.append("</hs:sec>");
         return utf8(sb.toString());

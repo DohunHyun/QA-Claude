@@ -219,6 +219,12 @@ class HwpxReviewReportTest {
         assertThat(section).contains("1. 검증 대상 산출물").contains("요구사항정의서.xlsx");
         assertThat(section).contains("4. QA 승인").contains("QA 승인 여부: 승인");
 
+        // 본문 상단 머리말("품질검토결과서"+밑줄)·꼬리말(쪽번호) — 참조 본문 디자인 재현
+        assertThat(section).contains("<hp:header").contains("품질검토결과서").contains("<hp:footer");
+        // 단계 결과 요약 표(참조 8페이지 종합의견 표) — 값 치환
+        assertThat(section).contains("<hp:tbl ").contains("부적합 사항");
+        assertThat(section).contains("분석단계").contains("설계단계");
+
         // section0.xml well-formed
         javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(new ByteArrayInputStream(section.getBytes(StandardCharsets.UTF_8)));
