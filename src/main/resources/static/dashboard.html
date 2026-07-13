@@ -125,40 +125,89 @@
     var M = window.MOCK, e = M.esc;
     var me = (M.currentUser() || {}).name || '';
 
-    // ── 선택 프로젝트 단계 진행 + KPI (콤보로 전환) ────────
+    // ── 선택 프로젝트 단계 진행 + KPI ── 백엔드 /api/projects + /api/reviews 단일 소스
+    //   프로젝트 목록: loadProjects(목록·현황과 동일). 단계상태·검증진행·누적회차: /api/reviews.
+    //   미조치 개선/권고: 선택 프로젝트 검토들의 시정조치(status!=DONE) 집계. 백엔드 미연결 시 목업 폴백.
     (function(){
-      var projs = M.visibleProjects();
       var sel = document.getElementById('dashProjSel');
-      if(!projs.length){ sel.innerHTML='<option>담당 프로젝트 없음</option>'; return; }
-      sel.innerHTML = projs.map(function(p){ return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+      var STAGES = ['관리','분석','설계'];
+      var projsRef = [];
+      var reviewsByCode = {};   // projectCode -> [review]
 
-      function curP(){ return projs.filter(function(p){ return String(p.id)===sel.value; })[0] || projs[0]; }
-      function stageState(code, st){
-        var rs = M.REVIEWS.filter(function(r){ return r.project===code && r.stage===st; });
+      function curP(){ return projsRef.filter(function(p){ return String(p.id)===sel.value; })[0] || projsRef[0]; }
+      function fillSel(projs){
+        projsRef = projs;
+        if(!projs.length){ sel.innerHTML='<option>담당 프로젝트 없음</option>'; return false; }
+        sel.innerHTML = projs.map(function(p){ return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+        return true;
+      }
+      function stageState(revs, st){
+        var rs = revs.filter(function(r){ return r.stage===st; });
         if(!rs.length) return 'wait';
-        if(rs.some(function(r){ return r.status==='RUNNING'; })) return 'run';
+        if(rs.some(function(r){ return r.status==='RUNNING' || r.status==='PENDING'; })) return 'run';
         return 'done';
       }
-      function renderKpi(){
-        var p = curP();
-        var revs = M.REVIEWS.filter(function(r){ return r.project===p.code; });
-        var defs = M.defectsFor(p.code);
+      function renderStageAndCounts(p, revs){
         document.getElementById('spName').textContent = p.name;
         document.getElementById('spCode').innerHTML = '<span class="pill">'+e(p.code)+'</span>';
-        document.getElementById('stageSteps').innerHTML = ['관리','분석','설계'].map(function(st){
-          var s = stageState(p.code, st);
+        document.getElementById('stageSteps').innerHTML = STAGES.map(function(st){
+          var s = stageState(revs, st);
           var cls = s==='done' ? 'st done' : (s==='run' ? 'st cur' : 'st');
           var lab = s==='done' ? '완료' : (s==='run' ? '진행중' : '예정');
-          var mark = s==='done' ? '✓' : (s==='run' ? '·' : '·');
+          var mark = s==='done' ? '✓' : '·';
           return '<div class="'+cls+'"><span class="n">'+mark+'</span>'+st+'단계 <span class="muted" style="margin-left:5px">'+lab+'</span></div>';
         }).join('');
-        document.getElementById('kRun').textContent = revs.filter(function(r){ return r.status==='RUNNING'; }).length;
-        document.getElementById('kErr').textContent = defs.filter(function(d){ return d.sev==='개선' && d.status!=='DONE'; }).length;
-        document.getElementById('kWarn').textContent = defs.filter(function(d){ return d.sev==='권고' && d.status!=='DONE'; }).length;
+        document.getElementById('kRun').textContent = revs.filter(function(r){ return r.status==='RUNNING'||r.status==='PENDING'; }).length;
         document.getElementById('kRounds').textContent = revs.filter(function(r){ return r.status==='COMPLETED'; }).length;
       }
-      sel.addEventListener('change', renderKpi);
-      renderKpi();
+
+      // 백엔드 KPI 렌더 — 미조치 개선/권고는 검토별 시정조치를 조회해 status!=DONE 만 집계
+      function renderKpi(){
+        var p = curP(); if(!p) return;
+        var revs = reviewsByCode[p.code] || [];
+        renderStageAndCounts(p, revs);
+        var kErr=document.getElementById('kErr'), kWarn=document.getElementById('kWarn');
+        if(!revs.length){ kErr.textContent='0'; kWarn.textContent='0'; return; }
+        Promise.all(revs.map(function(rv){
+          return fetch('/api/reviews/'+rv.reviewId+'/corrective-actions')
+            .then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
+        })).then(function(groups){
+          var err=0, warn=0;
+          groups.forEach(function(g){ (g||[]).forEach(function(a){
+            if(a.status==='DONE') return;
+            if(a.improvementType==='개선') err++; else if(a.improvementType==='권고') warn++;
+          }); });
+          var now=curP();   // 그 사이 선택이 바뀌지 않았을 때만 반영
+          if(now && now.code===p.code){ kErr.textContent=String(err); kWarn.textContent=String(warn); }
+        });
+      }
+
+      // 목업 폴백(백엔드 미연결) — 기존 동작 유지
+      function renderKpiMock(){
+        var p = curP(); if(!p) return;
+        var revs = M.REVIEWS.filter(function(r){ return r.project===p.code; });
+        var defs = M.defectsFor(p.code);
+        renderStageAndCounts(p, revs.map(function(r){ return { stage:r.stage, status:r.status }; }));
+        document.getElementById('kErr').textContent = defs.filter(function(d){ return d.sev==='개선' && d.status!=='DONE'; }).length;
+        document.getElementById('kWarn').textContent = defs.filter(function(d){ return d.sev==='권고' && d.status!=='DONE'; }).length;
+      }
+      function bootMock(){
+        if(!fillSel(M.visibleProjects())) return;
+        sel.addEventListener('change', renderKpiMock);
+        renderKpiMock();
+      }
+
+      // 백엔드 우선: /api/projects(loadProjects) + /api/reviews
+      Promise.all([
+        new Promise(function(res){ M.loadProjects(res); }),
+        fetch('/api/reviews').then(function(r){ if(!r.ok) throw new Error('http'); return r.json(); })
+      ]).then(function(out){
+        if(!fillSel(out[0])) return;
+        reviewsByCode = {};
+        (out[1]||[]).forEach(function(r){ (reviewsByCode[r.projectCode]=reviewsByCode[r.projectCode]||[]).push(r); });
+        sel.addEventListener('change', renderKpi);
+        renderKpi();
+      }).catch(bootMock);
     })();
 
     // ── 알림 렌더 (승인 결과 등) ──────────────────────────
@@ -197,22 +246,23 @@
     // 해시(#notis)로 진입 시 스크롤
     if (location.hash === '#notis') { var el=document.getElementById('notis'); if(el) el.scrollIntoView(); }
 
-    // 내 프로젝트 목록 (PM=담당, QA/관리자=관리 대상 전체)
+    // 내 프로젝트 목록 — 백엔드 /api/projects 단일 소스(목록·현황과 동일). pm/단계/진행률은 loadProjects 보강.
     var role = (M.currentUser() || {}).role;
     document.getElementById('projPanelTitle').textContent =
       (role === 'PM') ? '내 프로젝트' : '내가 관리하는 프로젝트';
-    var myProjs = M.visibleProjects();
-    document.getElementById('myProjects').innerHTML = myProjs.length
-      ? myProjs.map(function(p){
-          return '<tr onclick="location.href=\'project-detail.html?projectId='+p.id+'\'" style="cursor:pointer">'
-            + '<td class="num">'+e(p.pm)+'</td>'
-            + '<td><b>'+e(p.name)+'</b></td>'
-            + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
-            + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div>'
-            +   '<span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
-            + '<td class="num">'+M.stateHtml(p.status)+'</td></tr>';
-        }).join('')
-      : '<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">담당 중인 프로젝트가 없습니다.</td></tr>';
+    M.loadProjects(function(myProjs){
+      document.getElementById('myProjects').innerHTML = myProjs.length
+        ? myProjs.map(function(p){
+            return '<tr onclick="location.href=\'project-detail.html?projectId='+p.id+'\'" style="cursor:pointer">'
+              + '<td class="num">'+e(p.pm)+'</td>'
+              + '<td><b>'+e(p.name)+'</b></td>'
+              + '<td class="num"><span class="pill g">'+e(p.stage)+'</span></td>'
+              + '<td><div class="progress"><span style="width:'+p.progress+'%"></span></div>'
+              +   '<span class="muted" style="font-size:11px">'+p.progress+'%</span></td>'
+              + '<td class="num">'+M.stateHtml(p.status)+'</td></tr>';
+          }).join('')
+        : '<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">담당 중인 프로젝트가 없습니다.</td></tr>';
+    });
 
     document.getElementById('notices').innerHTML = M.NOTICES.map(function(n){
       return '<tr><td>'+e(n.title)+'</td><td class="num muted" style="width:90px">'+e(n.date)+'</td></tr>';
