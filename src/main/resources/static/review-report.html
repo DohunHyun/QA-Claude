@@ -44,6 +44,15 @@
     var issueBtn=document.getElementById('issueBtn');
     var currentReq=null;   // 현재 프로젝트+단계의 승인된 발급 요청
     var offlineDemo=false; // 백엔드 미연결(정적 프리뷰) 여부
+    var ovIssued=null, ovCanApprove=false;  // 검토 개요 배지 상태(발급됨 / 승인가능) — 'QA 승인 완료' 승격 판단용
+    // 검토 개요 배지: 발급 전·개선 0(=승인 가능) 상태에서만, 백엔드 승인 완료 시 'QA 승인 완료'로 승격.
+    function refreshApprovalBadge(){
+      var badge=document.getElementById('ovStatus');
+      if(!badge || ovIssued || !ovCanApprove) return;   // 발급완료/검토없음/개선조치필요 배지는 그대로
+      badge.innerHTML = currentReq
+        ? '<span class="state done">QA 승인 완료</span>'
+        : '<span class="state done">QA 승인 가능</span>';
+    }
     function updateIssueBtn(){
       currentReq=null; offlineDemo=false;
       var p=curProject(); if(!p){ issueBtn.disabled=true; return; }
@@ -61,9 +70,10 @@
           var appr=(reqs||[]).filter(function(r){ return r.status==='APPROVED'; })[0];
           if(appr){ currentReq=appr; issueBtn.disabled=false; issueBtn.title='QA 승인 완료 — 발급 가능'; }
           else { issueBtn.disabled=true; issueBtn.title='QA 승인 후 발급할 수 있습니다.'; }
+          refreshApprovalBadge();   // 승인 완료 시 개요 배지를 'QA 승인 완료'로 승격
         })
         .catch(function(){
-          // 백엔드 없음(정적 프리뷰) → 데모용으로 발급 허용(목업 발급)
+          // 백엔드 없음(정적 프리뷰) → 데모용으로 발급 허용(목업 발급), 배지는 목업 기본값(승인 가능) 유지
           offlineDemo=true; issueBtn.disabled=false; issueBtn.title='(오프라인 데모 — 목업 발급)';
         });
     }
@@ -129,10 +139,12 @@
       var defs=M.defectsFor(p.code).filter(function(d){return stageArts.indexOf(d.artifact)!==-1;});
       var issued = M.issuedReport(p.id, stage);
       var canApprove = !issued && arts.length>0 && errSum===0;
+      // 배지 승격 판단용 상태 저장(개요 배지는 render 후 updateIssueBtn 이 백엔드 승인여부로 갱신)
+      ovIssued = issued; ovCanApprove = canApprove;
 
       // ── 검토 개요 (단계 정보 · 누적 검토회차 · 누적 개선/권고) ──
       var html='<section class="panel"><div class="p-head"><h2>검토 개요 · '+e(p.name)+'</h2>'
-        + '<span class="more">'+(issued ? '<span class="state done">발급 완료</span> <span class="muted">'+e(issued.by)+' · '+e(issued.at)+'</span>'
+        + '<span class="more" id="ovStatus">'+(issued ? '<span class="state done">발급 완료</span> <span class="muted">'+e(issued.by)+' · '+e(issued.at)+'</span>'
               : arts.length===0 ? '<span class="state wait">검토 이력 없음</span>'
               : (canApprove ? '<span class="state done">QA 승인 가능</span>' : '<span class="state hold">개선 조치 필요</span>'))+'</span></div>'
         + '<div class="p-body"><div class="kpis" style="margin-bottom:0">'
