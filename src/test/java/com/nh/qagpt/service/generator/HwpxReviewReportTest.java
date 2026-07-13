@@ -1,6 +1,8 @@
 package com.nh.qagpt.service.generator;
 
 import com.nh.qagpt.domain.Defect;
+import com.nh.qagpt.domain.Document;
+import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.domain.ReviewResult;
 import com.nh.qagpt.domain.enums.DefectType;
 import com.nh.qagpt.domain.enums.Perspective;
@@ -172,6 +174,54 @@ class HwpxReviewReportTest {
         assertThat(section).contains("charPrIDRef=\"1\"");
         String firstPara = section.substring(section.indexOf("<hp:p id=\"0\""), section.indexOf("<hp:p id=\"1\""));
         assertThat(firstPara).contains("<hp:secPr").contains("단계말 검토결과서");
+    }
+
+    // ── 집계 발급(writeAggregate): 참조 실파일 1페이지 표지 디자인 재사용 ──
+    @Test
+    void 집계발급_1페이지는_참조표지디자인_2페이지는_검토본문() throws Exception {
+        Project project = new Project();
+        project.setName("투자자문 관리시스템 구축");
+        project.setCode("NBIA");
+
+        ReviewResult r = resultWithDefect();
+        Document doc = new Document();
+        doc.setFileName("요구사항정의서.xlsx");
+        r.setDocument(doc);
+
+        byte[] bytes = writer.writeAggregate(
+                project, "분석/설계", java.util.List.of(r), "김QA", java.time.LocalDate.of(2026, 7, 13));
+        Map<String, String> entries = readZip(bytes);
+
+        // 표지 로고(농협정보시스템) 포함 + 매니페스트 선언
+        assertThat(entries).containsKey("BinData/image1.bmp");
+        assertThat(entries.get("Contents/content.hpf"))
+                .contains("id=\"image1\"").contains("BinData/image1.bmp");
+
+        // 참조 실파일 헤더 재사용(폰트 일습) — 미니 헤더가 아님
+        String header = entries.get("Contents/header.xml");
+        assertThat(header).contains("함초롬바탕").contains("맑은 고딕");
+
+        String section = entries.get("Contents/section0.xml");
+        // 1페이지 표지: 값만 치환, 디자인(로고 pic·용지설정) 유지
+        assertThat(section).contains("품질검토 결과서(분석/설계단계)");
+        assertThat(section).contains("투자자문 관리시스템 구축");
+        assertThat(section).contains("NBIA-PM-342-02");
+        assertThat(section).contains("2026.07.13");
+        assertThat(section).contains("binaryItemIDRef=\"image1\"");
+        assertThat(section).contains("<hp:secPr").contains("<hp:pic");
+        // 참조 원본 표지 값은 남지 않음
+        assertThat(section).doesNotContain("테스트검증프로젝트 1차");
+        assertThat(section).doesNotContain("NHEFS-PM-342-02");
+        assertThat(section).doesNotContain("품질점검보고서(분석/설계단계)");
+
+        // 2페이지: 검토 본문 + 페이지 분리
+        assertThat(section).contains("pageBreak=\"1\"");
+        assertThat(section).contains("1. 검증 대상 산출물").contains("요구사항정의서.xlsx");
+        assertThat(section).contains("4. QA 승인").contains("QA 승인 여부: 승인");
+
+        // section0.xml well-formed
+        javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(new ByteArrayInputStream(section.getBytes(StandardCharsets.UTF_8)));
     }
 
     private int countOf(String s, String sub) {

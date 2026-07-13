@@ -9,8 +9,10 @@ import com.nh.qagpt.domain.enums.Severity;
 import com.nh.qagpt.domain.enums.Stage;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.CRC32;
@@ -31,6 +33,18 @@ import java.util.zip.ZipOutputStream;
 public class HwpxReviewReportWriter {
 
     private static final String REVIEWER = "AI품질검토봇";
+
+    // ── 집계 발급(writeAggregate) 표지 디자인 재사용 ──────────────
+    // 참조 실파일(NHEFS-PM-342-02 품질점검보고서)의 1페이지 표지 XML·헤더·로고를 템플릿으로 박제해
+    // 그대로 재사용한다. 표지 조각/헤더/로고는 아래 클래스패스 리소스에 번들되어 있다.
+    private static final String TPL = "/templates/hwpx/";
+    private static final DateTimeFormatter DOT_DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+    // 2페이지 본문에 쓰는 참조 헤더의 스타일 ID(실측 존재 확인): 본문 글자=2(맑은고딕 11pt),
+    // 소제목 글자=12(함초롬 14pt 굵게), 문단정렬 JUSTIFY=2 / LEFT=0.
+    private static final int BODY_CHAR = 2;
+    private static final int HEADING_CHAR = 12;
+    private static final int JUSTIFY_PARA = 2;
+    private static final int LEFT_PARA = 0;
 
     /** 한컴 실파일과 동일한 네임스페이스 셋 (head/sec 루트 공통). */
     private static final String NS_ALL =
@@ -373,8 +387,112 @@ public class HwpxReviewReportWriter {
      */
     public byte[] writeAggregate(Project project, String stageGroup, List<ReviewResult> reviews,
                                  String approverName, LocalDate approvedDate) {
-        return pack(sectionAggregate(project, stageGroup, reviews, approverName, approvedDate),
+        return packAggregate(sectionAggregate(project, stageGroup, reviews, approverName, approvedDate),
                 linesAggregate(project, stageGroup, reviews, approverName, approvedDate));
+    }
+
+    /**
+     * 집계 발급 전용 패키징 — 참조 실파일 헤더(폰트·표스타일 일습)와 표지 로고(농협정보시스템)를 포함한다.
+     * 개별 다운로드(write) 경로의 pack()과 달리 header.xml은 번들 참조 헤더를 쓰고 BinData/image1.bmp를 넣는다.
+     */
+    private byte[] packAggregate(byte[] sectionBytes, List<String> lines) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+             ZipOutputStream zip = new ZipOutputStream(out)) {
+
+            stored(zip, "mimetype", "application/hwp+zip".getBytes(StandardCharsets.US_ASCII));
+            deflated(zip, "version.xml", versionXml());
+            deflated(zip, "Contents/header.xml", templateBytes("header.xml"));
+            deflated(zip, "Contents/section0.xml", sectionBytes);
+            deflated(zip, "BinData/image1.bmp", templateBytes("BinData/image1.bmp"));
+            deflated(zip, "Preview/PrvText.txt", prvText(lines));
+            deflated(zip, "settings.xml", settingsXml());
+            deflated(zip, "META-INF/container.xml", containerXml());
+            deflated(zip, "Contents/content.hpf", contentHpfAggregate());
+
+            zip.finish();
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("검토결과서(HWPX) 생성 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** content.hpf(집계) — 표지 로고(image1)를 매니페스트에 선언. */
+    private byte[] contentHpfAggregate() {
+        return utf8("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+                + "<opf:package " + NS_ALL + " version=\"\" unique-identifier=\"\" id=\"\">"
+                + "<opf:metadata>"
+                + "<opf:title>품질검토 결과서</opf:title>"
+                + "<opf:language>ko</opf:language>"
+                + "<opf:meta name=\"creator\" content=\"text\">" + REVIEWER + "</opf:meta>"
+                + "</opf:metadata>"
+                + "<opf:manifest>"
+                + "<opf:item id=\"header\" href=\"Contents/header.xml\" media-type=\"application/xml\"/>"
+                + "<opf:item id=\"section0\" href=\"Contents/section0.xml\" media-type=\"application/xml\"/>"
+                + "<opf:item id=\"settings\" href=\"settings.xml\" media-type=\"application/xml\"/>"
+                + "<opf:item id=\"image1\" href=\"BinData/image1.bmp\" media-type=\"image/bmp\" isEmbeded=\"1\"/>"
+                + "</opf:manifest>"
+                + "<opf:spine>"
+                + "<opf:itemref idref=\"header\" linear=\"yes\"/>"
+                + "<opf:itemref idref=\"section0\"/>"
+                + "</opf:spine></opf:package>");
+    }
+
+    /** 클래스패스 번들 템플릿 리소스 로딩. */
+    private byte[] templateBytes(String rel) {
+        try (InputStream in = getClass().getResourceAsStream(TPL + rel)) {
+            if (in == null) {
+                throw new IllegalStateException("템플릿 리소스 없음: " + TPL + rel);
+            }
+            return in.readAllBytes();
+        } catch (Exception e) {
+            throw new IllegalStateException("템플릿 로딩 실패: " + rel + " — " + e.getMessage(), e);
+        }
+    }
+
+    private String templateString(String rel) {
+        return new String(templateBytes(rel), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 1페이지 표지 — 참조 실파일 표지 조각(cover.xml)을 그대로 쓰되 6개 값만 발급 데이터로 치환한다.
+     * 로고(농협정보시스템)·표·박스·폰트는 참조 디자인 그대로.
+     */
+    private String renderCover(Project project, String stageGroup, String docNo,
+                               String version, String dateStr) {
+        String pName = safe(project == null ? null : project.getName());
+        String pCode = safe(project == null ? null : project.getCode());
+        String title = "품질검토 결과서(" + coverStageLabel(stageGroup) + ")";
+        String subtitle = "- " + (pCode.isEmpty() ? "프로젝트" : pCode) + " -";
+
+        String cover = templateString("cover.xml");
+        cover = replaceText(cover, "테스트검증프로젝트 1차", pName);
+        cover = replaceText(cover, "품질점검보고서(분석/설계단계)", title);
+        cover = replaceText(cover, "- 프로젝트관리 -", subtitle);
+        cover = replaceText(cover, "NHEFS-PM-342-02", docNo);
+        cover = replaceText(cover, "1.0", version);
+        cover = replaceText(cover, "2026.06.26", dateStr);
+        return cover;
+    }
+
+    /** 표지 조각 안 특정 <hp:t>원문</hp:t>을 치환(조각 경계 내 유일 앵커, 실측 검증). */
+    private String replaceText(String frag, String from, String to) {
+        return frag.replace("<hp:t>" + from + "</hp:t>", "<hp:t>" + escape(to) + "</hp:t>");
+    }
+
+    /** 표지 제목 괄호 안 단계 라벨 정규화(예: "분석/설계" → "분석/설계단계"). */
+    private String coverStageLabel(String stageGroup) {
+        String s = safe(stageGroup).trim();
+        if (s.isEmpty()) {
+            return "분석/설계단계";
+        }
+        return s.endsWith("단계") ? s : s + "단계";
+    }
+
+    /** 2페이지 본문 문단(참조 헤더 스타일). 첫 문단은 pageBreak로 새 페이지에서 시작. */
+    private String refPara(String text, int charPrId, int paraPrId, boolean pageBreak) {
+        return "<hp:p id=\"0\" paraPrIDRef=\"" + paraPrId + "\" styleIDRef=\"0\" pageBreak=\""
+                + (pageBreak ? "1" : "0") + "\" columnBreak=\"0\" merged=\"0\">"
+                + "<hp:run charPrIDRef=\"" + charPrId + "\"><hp:t>" + escape(text) + "</hp:t></hp:run></hp:p>";
     }
 
     /** 단계별 [개선, 권고] 결함 수. */
@@ -395,50 +513,42 @@ public class HwpxReviewReportWriter {
         int[] an = stageCounts(reviews, Stage.ANALYSIS);
         int[] ds = stageCounts(reviews, Stage.DESIGN);
         int total = an[0] + an[1] + ds[0] + ds[1];
-        String pName = safe(project == null ? null : project.getName());
         String pCode = safe(project == null ? null : project.getCode());
-        String approveDateStr = approvedDate == null ? "__________" : approvedDate.toString();
+        String approveDateStr = approvedDate == null ? "__________" : approvedDate.format(DOT_DATE);
+        String docNo = (pCode.isEmpty() ? "" : pCode + "-") + "PM-342-02";
 
         StringBuilder sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>");
         sb.append("<hs:sec ").append(NS_ALL).append(">");
 
-        Counter pid = new Counter();
-        sb.append(para(pid.next(), "단계말 검토결과서", 1, 1, sectionSettings()));
-        sb.append(para(pid.next(), "", 0, 1, null));
-        sb.append(para(pid.next(), "프로젝트: " + pName + " (" + pCode + ")", 0, 0, null));
-        sb.append(para(pid.next(), "검증 단계: " + safe(stageGroup), 0, 0, null));
-        sb.append(para(pid.next(), "검토자: " + safe(approverName), 0, 0, null));
-        sb.append(para(pid.next(), "", 0, 0, null));
+        // 1페이지: 참조 실파일 표지 디자인 그대로(값만 치환). secPr(용지)·로고·표는 조각에 포함.
+        sb.append(renderCover(project, stageGroup, docNo, "1.0", approveDateStr));
 
-        // 1. 검증 대상 산출물 (분석/설계 산출물 전체)
-        sb.append(para(pid.next(), "1. 검증 대상 산출물", 2, 0, null));
+        // 2페이지: 검토결과 본문 — 참조 헤더 폰트/소제목 스타일. 첫 문단에서 페이지 분리.
+        sb.append(refPara("1. 검증 대상 산출물", HEADING_CHAR, LEFT_PARA, true));
         for (ReviewResult r : reviews) {
             Document doc = r.getDocument();
-            sb.append(para(pid.next(), "- " + artifactLabel(doc) + " / "
-                    + safe(doc == null ? null : doc.getFileName()), 0, 0, null));
+            sb.append(refPara("- " + artifactLabel(doc) + " / "
+                    + safe(doc == null ? null : doc.getFileName()), BODY_CHAR, JUSTIFY_PARA, false));
         }
-        sb.append(para(pid.next(), "", 0, 0, null));
+        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
 
-        // 2. 단계 결과 요약
-        sb.append(para(pid.next(), "2. 단계 결과 요약", 2, 0, null));
-        sb.append(para(pid.next(), "- 총 " + total + "건", 0, 0, null));
-        sb.append(para(pid.next(), "- 분석단계: 개선 " + an[0] + "건, 권고 " + an[1] + "건", 0, 0, null));
-        sb.append(para(pid.next(), "- 설계단계: 개선 " + ds[0] + "건, 권고 " + ds[1] + "건", 0, 0, null));
-        sb.append(para(pid.next(), "- 최종 결과: 적합", 0, 0, null));
-        sb.append(para(pid.next(), "", 0, 0, null));
+        sb.append(refPara("2. 단계 결과 요약", HEADING_CHAR, LEFT_PARA, false));
+        sb.append(refPara("- 총 " + total + "건", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- 분석단계: 개선 " + an[0] + "건, 권고 " + an[1] + "건", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- 설계단계: 개선 " + ds[0] + "건, 권고 " + ds[1] + "건", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- 최종 결과: 적합", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
 
-        // 3. 최종 평가
-        sb.append(para(pid.next(), "3. 최종 평가", 2, 0, null));
-        sb.append(para(pid.next(), "- 적합 (부적합 없음)", 0, 0, null));
-        sb.append(para(pid.next(), "", 0, 0, null));
+        sb.append(refPara("3. 최종 평가", HEADING_CHAR, LEFT_PARA, false));
+        sb.append(refPara("- 적합 (부적합 없음)", BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("", BODY_CHAR, JUSTIFY_PARA, false));
 
-        // 4. QA 승인
-        sb.append(para(pid.next(), "4. QA 승인", 2, 0, null));
-        sb.append(para(pid.next(), "- QA 검토자: " + safe(approverName), 0, 0, null));
-        sb.append(paraSign(pid.next(), "- 서명: ", safe(approverName)));
-        sb.append(para(pid.next(), "- 승인일: " + approveDateStr, 0, 0, null));
-        sb.append(para(pid.next(), "- QA 승인 여부: 승인", 0, 0, null));
+        sb.append(refPara("4. QA 승인", HEADING_CHAR, LEFT_PARA, false));
+        sb.append(refPara("- QA 검토자: " + safe(approverName), BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- 서명: " + safe(approverName), BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- 승인일: " + approveDateStr, BODY_CHAR, JUSTIFY_PARA, false));
+        sb.append(refPara("- QA 승인 여부: 승인", BODY_CHAR, JUSTIFY_PARA, false));
 
         sb.append("</hs:sec>");
         return utf8(sb.toString());
@@ -451,7 +561,7 @@ public class HwpxReviewReportWriter {
         int[] ds = stageCounts(reviews, Stage.DESIGN);
         int total = an[0] + an[1] + ds[0] + ds[1];
         List<String> lines = new ArrayList<>();
-        lines.add("단계말 검토결과서");
+        lines.add("품질검토 결과서");
         lines.add("");
         lines.add("프로젝트: " + safe(project == null ? null : project.getName())
                 + " (" + safe(project == null ? null : project.getCode()) + ")");
@@ -479,13 +589,6 @@ public class HwpxReviewReportWriter {
         lines.add("- 승인일: " + (approvedDate == null ? "__________" : approvedDate.toString()));
         lines.add("- QA 승인 여부: 승인");
         return lines;
-    }
-
-    /** 라벨(정자) + 서명(이탤릭 필기체 느낌) 2-run 문단. */
-    private String paraSign(int id, String label, String sign) {
-        return "<hp:p id=\"" + id + "\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\">"
-                + "<hp:run charPrIDRef=\"0\"><hp:t>" + escape(label) + "</hp:t></hp:run>"
-                + "<hp:run charPrIDRef=\"3\"><hp:t>" + escape(sign) + "</hp:t></hp:run></hp:p>";
     }
 
     /** 단순 문단. firstRunExtra는 첫 run 앞에 삽입되는 컨트롤(섹션설정 등, 없으면 null). */
