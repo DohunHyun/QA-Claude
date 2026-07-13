@@ -19,6 +19,7 @@ import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.PrintSetup;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
@@ -286,8 +287,8 @@ public class ResultGeneratorImpl implements ResultGenerator {
     private void writeCoverSheet(Workbook wb, String projectName, String code, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("표지");
         XSSFWorkbook xwb = (XSSFWorkbook) wb;
-        // PoC 표지: 그리드 숨김(흰 배경) + 페이지나누기 미리보기 + 인쇄영역 A1:N17(파란 프레임)
-        pageSetup(wb, sheet, true, 13, 16);
+        // PoC 표지: 그리드 숨김(흰 배경) + 가로 A4 한 페이지 맞춤 + 페이지나누기 미리보기 + 인쇄영역 A1:N17(파란 프레임)
+        pageSetup(wb, sheet, true, 13, 16, true);
 
         sheet.setColumnWidth(0, (int) (8.8 * 256));
         sheet.setColumnWidth(14, (int) (8.8 * 256));   // O
@@ -326,7 +327,7 @@ public class ResultGeneratorImpl implements ResultGenerator {
     private void writeRevisionSheet(Workbook wb, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("개정이력");
         XSSFWorkbook xwb = (XSSFWorkbook) wb;
-        pageSetup(wb, sheet, true, null, null);   // 그리드 숨김 + 페이지나누기 미리보기(PoC 동일)
+        pageSetup(wb, sheet, true, null, null, false);   // 그리드 숨김 + 가로 A4 + 페이지나누기 미리보기(PoC 동일)
 
         double[] w = {10.6, 12, 10.6, 72.6, 10.6, 10.6};
         for (int c = 0; c < w.length; c++) {
@@ -384,7 +385,7 @@ public class ResultGeneratorImpl implements ResultGenerator {
                                   String stageLabel, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("시정조치서");
         XSSFWorkbook xwb = (XSSFWorkbook) wb;
-        pageSetup(wb, sheet, false, null, null);   // 그리드 숨김(흰 배경). 표는 자체 테두리 보유
+        pageSetup(wb, sheet, false, null, null, false);   // 그리드 숨김(흰 배경). 표는 자체 테두리 보유
 
         int target = actions.size();
         int done = (int) actions.stream().filter(a -> a.getStatus() == ActionStatus.DONE).count();
@@ -528,14 +529,25 @@ public class ResultGeneratorImpl implements ResultGenerator {
      * 시트 표시 설정 — 그리드선 숨김(흰 배경). previewFrame=true 면 페이지나누기 미리보기로 전환해
      * 인쇄영역 프레임을 노출한다. printCols/printRows(0-based) 지정 시 인쇄영역을 A1:(col,row)로 설정.
      */
-    private void pageSetup(Workbook wb, Sheet sheet, boolean previewFrame, Integer printCols, Integer printRows) {
+    private void pageSetup(Workbook wb, Sheet sheet, boolean previewFrame, Integer printCols, Integer printRows,
+                           boolean fitOnePage) {
         sheet.setDisplayGridlines(false);
         sheet.setPrintGridlines(false);
         if (previewFrame) {
+            // PoC 표지/개정이력: 가로(landscape) A4 — 세로면 14열이 한 페이지 폭을 넘어 페이지가 쪼개진다.
+            PrintSetup ps = sheet.getPrintSetup();
+            ps.setPaperSize(PrintSetup.A4_PAPERSIZE);
+            ps.setLandscape(true);
             CTSheetViews views = ((XSSFSheet) sheet).getCTWorksheet().getSheetViews();
             CTSheetView v = views.sizeOfSheetViewArray() > 0 ? views.getSheetViewArray(0) : views.addNewSheetView();
             v.setView(STSheetViewType.PAGE_BREAK_PREVIEW);
             v.setZoomScaleSheetLayoutView(100);
+        }
+        if (fitOnePage) {
+            // 표지는 한 페이지에 딱 맞춤 → 자동 페이지나누기(파란 점선)·2페이지 방지
+            sheet.setFitToPage(true);
+            sheet.getPrintSetup().setFitWidth((short) 1);
+            sheet.getPrintSetup().setFitHeight((short) 1);
         }
         if (printCols != null && printRows != null) {
             wb.setPrintArea(wb.getSheetIndex(sheet), 0, printCols, 0, printRows);
