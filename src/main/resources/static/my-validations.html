@@ -38,8 +38,17 @@
   <script src="assets/js/layout.js"></script>
   <script>
     var M=window.MOCK, e=M.esc;
-    document.getElementById('projSel').innerHTML = M.visibleProjects().map(function(p){ return '<option>'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
-    document.getElementById('rows').innerHTML = M.visibleReviews().map(function(r){
+    function fmtDate(iso){ return iso ? String(iso).slice(0,10) : ''; }
+    // 산출물 유형(enum) → 짧은 코드(AN06 등) 표기 보강 (백엔드는 label만 주므로 목업 ARTIFACTS로 매칭)
+    function codeOf(type){ var a=(M.ARTIFACTS||[]).filter(function(x){ return x.type===type; })[0]; return a?a.code:''; }
+
+    // 프로젝트 필터 — 백엔드 /api/projects 단일 소스(목록·현황과 동일)
+    M.loadProjects(function(list){
+      document.getElementById('projSel').innerHTML = '<option>전체</option>' + list.map(function(p){
+        return '<option>'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+    });
+
+    function rowHtml(r){
       var verdict = r.status!=='COMPLETED' ? '<span class="muted">-</span>'
         : (r.passed ? '<span class="state done">통과</span>' : '<span class="state fail">미통과</span>');
       return '<tr onclick="location.href=\'validation-result.html?reviewId='+r.id+'\'" style="cursor:pointer">'
@@ -49,9 +58,26 @@
         +'<td class="num">'+M.stateHtml(r.status)+'</td><td class="num">'+verdict+'</td>'
         +'<td class="num">'+(r.error?'<span class="badge 개선">'+r.error+'</span>':'<span class="muted">0</span>')+'</td>'
         +'<td class="num">'+(r.warn?'<span class="badge 권고">'+r.warn+'</span>':'<span class="muted">0</span>')+'</td>'
-        +'<td class="num muted">'+e(r.date)+'</td>'
-        +'<td class="num"><a class="btn sm sec" href="validation-result.html?reviewId="+r.id+"">보기</a></td></tr>';
-    }).join('');
+        +'<td class="num muted">'+e(fmtDate(r.date))+'</td>'
+        +'<td class="num"><a class="btn sm sec" href="validation-result.html?reviewId='+r.id+'">보기</a></td></tr>';
+    }
+    function renderRows(rows){
+      document.getElementById('rows').innerHTML = rows.length
+        ? rows.map(rowHtml).join('')
+        : '<tr><td colspan="11" class="muted" style="text-align:center;padding:30px">검증 이력이 없습니다. <a href="validation-upload.html">새 검증 시작 ›</a></td></tr>';
+    }
+
+    // 검증 이력 — 백엔드 /api/reviews 단일 소스, 미연결(정적 프리뷰) 시 목업 폴백
+    fetch('/api/reviews')
+      .then(function(res){ if(!res.ok) throw new Error('http'); return res.json(); })
+      .then(function(list){
+        renderRows((list||[]).map(function(r){
+          return { id:r.reviewId, project:r.projectCode, artifact:r.artifactLabel, code:codeOf(r.artifactType),
+            stage:r.stage, round:r.round, status:r.status, passed:r.passed,
+            error:r.improvementCount, warn:r.recommendationCount, date:r.createdAt };
+        }));
+      })
+      .catch(function(){ renderRows(M.visibleReviews()); });
   </script>
 </body>
 </html>
