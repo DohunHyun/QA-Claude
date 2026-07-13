@@ -250,7 +250,7 @@ window.MOCK = (function () {
     { code:'NHCD',  name:'(카드) 정산시스템 재구축',        pm:'최유진', mgmt:'run',  analysis:'wait', design:'wait', test:'wait', deploy:'wait', reviews:3,  improve:2, recommend:1, doneRate:20 },
     { code:'NHTR',  name:'(은행) 퇴직연금 관리 고도화',     pm:'박서준', mgmt:'done', analysis:'run',  design:'wait', test:'wait', deploy:'wait', reviews:7,  improve:3, recommend:3, doneRate:45 },
     { code:'NHIB',  name:'(은행) 기업뱅킹 포털 개선',       pm:'이도현', mgmt:'done', analysis:'done', design:'run',  test:'wait', deploy:'wait', reviews:12, improve:4, recommend:6, doneRate:62 },
-    { code:'NHSC',  name:'(은행) 자산 스코어링 엔진 구축',  pm:'김명호', mgmt:'done', analysis:'done', design:'done', test:'done', deploy:'run',  reviews:15, improve:1, recommend:7, doneRate:92 },
+    { code:'NHSC',  name:'(은행) 자산 스코어링 엔진 구축',  pm:'유지현', mgmt:'done', analysis:'done', design:'done', test:'done', deploy:'run',  reviews:15, improve:1, recommend:7, doneRate:92 },
     { code:'NHDW',  name:'(그룹) 데이터웨어하우스 전환',    pm:'최유진', mgmt:'done', analysis:'done', design:'done', test:'run',  deploy:'wait', reviews:14, improve:2, recommend:8, doneRate:78 }
   ];
 
