@@ -1,15 +1,25 @@
 package com.nh.qagpt.controller;
 
+import com.nh.qagpt.domain.CorrectiveAction;
 import com.nh.qagpt.domain.Project;
 import com.nh.qagpt.dto.ProjectRequest;
 import com.nh.qagpt.dto.ProjectResponse;
 import com.nh.qagpt.exception.ResourceNotFoundException;
+import com.nh.qagpt.repository.CorrectiveActionRepository;
 import com.nh.qagpt.repository.ProjectRepository;
+import com.nh.qagpt.service.generator.ResultGenerator;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -17,9 +27,15 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectRepository projectRepository;
+    private final CorrectiveActionRepository correctiveActionRepository;
+    private final ResultGenerator resultGenerator;
 
-    public ProjectController(ProjectRepository projectRepository) {
+    public ProjectController(ProjectRepository projectRepository,
+                             CorrectiveActionRepository correctiveActionRepository,
+                             ResultGenerator resultGenerator) {
         this.projectRepository = projectRepository;
+        this.correctiveActionRepository = correctiveActionRepository;
+        this.resultGenerator = resultGenerator;
     }
 
     @PostMapping
@@ -57,5 +73,26 @@ public class ProjectController {
                 .orElseThrow(() -> new ResourceNotFoundException("프로젝트 없음: " + id));
         project.setStatus(com.nh.qagpt.domain.enums.ProjectStatus.ACTIVE);
         return ProjectResponse.from(projectRepository.save(project));
+    }
+
+    /**
+     * [S4] 프로젝트 전체 시정조치관리대장(.xlsx) 다운로드 — 프로젝트의 모든 검토 회차 시정조치를
+     * 시정조치서 시트에 집계(화면 대장과 동일 항목). lazy 연관 로드 위해 트랜잭션 내 생성.
+     */
+    @GetMapping("/{id}/corrective-action-ledger")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadCorrectiveActionLedger(@PathVariable Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("프로젝트 없음: " + id));
+        List<CorrectiveAction> actions = correctiveActionRepository.findByProjectId(id);
+        byte[] xlsx = resultGenerator.generateCorrectiveActionLedger(project, actions);
+
+        String filename = "시정조치관리대장_" + (project.getCode() == null ? id : project.getCode()) + ".xlsx";
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new ByteArrayResource(xlsx));
     }
 }
