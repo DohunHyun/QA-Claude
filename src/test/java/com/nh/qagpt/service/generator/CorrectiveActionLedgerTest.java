@@ -121,16 +121,13 @@ class CorrectiveActionLedgerTest {
     @Test
     void 버전값이_부동소수점오차없이_텍스트로_표기된다() throws Exception {
         try (Workbook wb = read(generator.generateCorrectiveActionLedger(sampleResult()))) {
-            // 표지 버전 셀
+            // 표지 문서정보 그리드: 버전 라벨 E11(row10,col4), 값 G11(row10,col6)
             Sheet cover = wb.getSheet("표지");
-            String coverVer = null;
-            for (Row row : cover) {
-                if (row.getCell(0) != null && "버전".equals(fmt.formatCellValue(row.getCell(0)))) {
-                    coverVer = fmt.formatCellValue(row.getCell(1));
-                }
-            }
-            assertThat(coverVer).isEqualTo("1.1").doesNotContain("1.1000");
-            // 개정이력 버전 셀
+            assertThat(cell(cover, 10, 4)).isEqualTo("버전");
+            assertThat(cell(cover, 10, 6)).isEqualTo("1.1").doesNotContain("1.1000");
+            // 문서번호 G10(row9,col6) = 코드-PM-342-03 (NH 중복 없이)
+            assertThat(cell(cover, 9, 6)).isEqualTo("NHEFS-PM-342-03");
+            // 개정이력 데이터행 버전 셀(row2,col0)
             assertThat(cell(wb.getSheet("개정이력"), 2, 0)).isEqualTo("1.1").doesNotContain("1.1000");
         }
     }
@@ -183,8 +180,9 @@ class CorrectiveActionLedgerTest {
             assertThat(cell(s, 4, 0)).isEqualTo("CA_W02");
             assertThat(cell(s, 5, 0)).isEqualTo("CA_P01");
             assertThat(s.getRow(6)).isNull();
-            // 표지: 프로젝트명·문서번호에 프로젝트 코드 반영
-            assertThat(cell(wb.getSheet("표지"), 0, 0)).isEqualTo("프로젝트X");
+            // 표지: 프로젝트명 A6(row5,col0), 문서번호 G10(row9,col6)에 코드 반영
+            assertThat(cell(wb.getSheet("표지"), 5, 0)).isEqualTo("프로젝트X");
+            assertThat(cell(wb.getSheet("표지"), 9, 6)).isEqualTo("NHGBS-PM-342-03");
         }
     }
 }

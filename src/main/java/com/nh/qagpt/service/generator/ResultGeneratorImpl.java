@@ -238,11 +238,8 @@ public class ResultGeneratorImpl implements ResultGenerator {
     private byte[] buildLedger(String projectName, String code, String stageLabel,
                                LocalDate baseDate, List<CorrectiveAction> actions) {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            CellStyle textStyle = wb.createCellStyle();
-            textStyle.setDataFormat(wb.createDataFormat().getFormat("@")); // 텍스트 서식(부동소수점 방지)
-
-            writeCoverSheet(wb, textStyle, projectName, code, baseDate);
-            writeRevisionSheet(wb, textStyle, baseDate);
+            writeCoverSheet(wb, projectName, code, baseDate);
+            writeRevisionSheet(wb, baseDate);
             writeActionSheet(wb, actions, stageLabel, baseDate);
 
             wb.write(out);
@@ -281,35 +278,95 @@ public class ResultGeneratorImpl implements ResultGenerator {
         return reportWriter.write(result);
     }
 
-    // ── 표지 ──────────────────────────────────────────────────────
-    private void writeCoverSheet(Workbook wb, CellStyle textStyle, String projectName, String code, LocalDate baseDate) {
+    // ── 표지 (PoC 표지 레이아웃 재현: 비밀구분 박스·큰 제목·문서정보 그리드) ──────────
+    private void writeCoverSheet(Workbook wb, String projectName, String code, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("표지");
+        XSSFWorkbook xwb = (XSSFWorkbook) wb;
 
-        setString(sheet, 0, 0, projectName);
-        setString(sheet, 1, 0, "시정조치서");
-        setLabelValue(sheet, 3, "문서번호", "NH" + code + "-PM-342-03");
-        // 버전은 텍스트 강제 — 숫자 서식이면 1.1 → 1.1000000000000001 로 표기됨
-        setLabelValueStyled(sheet, 4, "버전", "1.1", textStyle);
-        setLabelValue(sheet, 5, "제/개정일자", baseDate == null ? "" : baseDate.format(DOT));
+        sheet.setColumnWidth(0, (int) (8.8 * 256));
+        sheet.setColumnWidth(14, (int) (8.8 * 256));   // O
+        double[] heights = {24, 18.95, 24, 24, 24, 24, 75.75, 24, 24, 18.95, 18.95, 18.95, 18.95, 18.95, 18.95, 24, 24};
+        for (int i = 0; i < heights.length; i++) {
+            sheet.createRow(i).setHeightInPoints((float) heights[i]);
+        }
+
+        XSSFCellStyle secretLabel = coverStyle(xwb, 12, true, null, null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle secretValue = coverStyle(xwb, 12, true, "FF0000", null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle projName = coverStyle(xwb, 18, true, null, null, HorizontalAlignment.RIGHT, null);
+        setSides(projName, null, BorderStyle.DOUBLE, null, null);            // 아래 이중선
+        XSSFCellStyle title = coverStyle(xwb, 28, false, null, null, HorizontalAlignment.CENTER, null);
+        setSides(title, BorderStyle.DOUBLE, BorderStyle.DOUBLE, null, null); // 위·아래 이중선
+        XSSFCellStyle label = coverStyle(xwb, 12, true, null, "D9E1F2", HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle value = coverStyle(xwb, 12, true, null, null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle valueText = coverStyle(xwb, 12, true, null, null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        valueText.setDataFormat(wb.createDataFormat().getFormat("@")); // 버전 텍스트 강제(부동소수점 방지)
+
+        // 우상단 비밀구분 박스
+        mergedCell(sheet, 2, 12, 13, "비밀구분", secretLabel);
+        mergedCell(sheet, 3, 12, 13, "대외비", secretValue);
+        // 프로젝트명 · 큰 제목
+        mergedCell(sheet, 5, 0, 13, projectName, projName);
+        mergedCell(sheet, 6, 0, 13, "시정조치서", title);
+        // 문서정보 그리드 (라벨/값)
+        mergedCell(sheet, 9, 4, 5, "문서번호", label);
+        mergedCell(sheet, 9, 6, 9, code + "-PM-342-03", value);
+        mergedCell(sheet, 10, 4, 5, "버전", label);
+        mergedCell(sheet, 10, 6, 9, "1.1", valueText);
+        mergedCell(sheet, 11, 4, 5, "제/개정일자", label);
+        mergedCell(sheet, 11, 6, 9, baseDate == null ? "" : baseDate.format(DOT), value);
     }
 
-    // ── 개정이력 ───────────────────────────────────────────────────
-    private void writeRevisionSheet(Workbook wb, CellStyle textStyle, LocalDate baseDate) {
+    // ── 개정이력 (PoC 레이아웃 재현: 제목·회색 헤더·양식행·각주) ────────────────
+    private void writeRevisionSheet(Workbook wb, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("개정이력");
-        setString(sheet, 0, 0, "개정이력");
-        String[] header = {"버전", "변경일", "구분", "개정내용", "작성자"};
-        Row hr = sheet.createRow(1);
-        for (int c = 0; c < header.length; c++) {
-            hr.createCell(c).setCellValue(header[c]);
+        XSSFWorkbook xwb = (XSSFWorkbook) wb;
+
+        double[] w = {10.6, 12, 10.6, 72.6, 10.6, 10.6};
+        for (int c = 0; c < w.length; c++) {
+            sheet.setColumnWidth(c, (int) (w[c] * 256));
         }
-        Row row = sheet.createRow(2);
-        Cell ver = row.createCell(0);
-        ver.setCellStyle(textStyle);
-        ver.setCellValue("1.1");
-        row.createCell(1).setCellValue(baseDate == null ? "" : baseDate.format(DOT));
-        row.createCell(2).setCellValue("최초 작성");
-        row.createCell(3).setCellValue("AI 자동 생성 (품질검토 결과 반영)");
-        row.createCell(4).setCellValue(REVIEWER);
+
+        XSSFCellStyle titleStyle = coverStyle(xwb, 14, true, null, null, HorizontalAlignment.CENTER, null);
+        setSides(titleStyle, null, BorderStyle.THIN, null, null);
+        XSSFCellStyle head = coverStyle(xwb, 11, true, null, "D9D9D9", HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle cellC = coverStyle(xwb, 10, false, null, null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        XSSFCellStyle cellL = coverStyle(xwb, 10, false, null, null, HorizontalAlignment.LEFT, BorderStyle.THIN);
+        XSSFCellStyle verCell = coverStyle(xwb, 10, false, null, null, HorizontalAlignment.CENTER, BorderStyle.THIN);
+        verCell.setDataFormat(wb.createDataFormat().getFormat("@"));
+        XSSFCellStyle note = coverStyle(xwb, 8, false, null, null, HorizontalAlignment.LEFT, null);
+        note.setWrapText(false);
+
+        sheet.createRow(0).setHeightInPoints(24);
+        mergedCell(sheet, 0, 0, 5, "개정이력", titleStyle);
+
+        String[] header = {"버전", "변경일", "구분", "개정내용", "작성자", "승인자"};
+        Row hr = sheet.createRow(1);
+        hr.setHeightInPoints(24);
+        for (int c = 0; c < header.length; c++) {
+            setStyled(hr, c, header[c], head);
+        }
+
+        Row dr = sheet.createRow(2);
+        dr.setHeightInPoints(24);
+        setStyled(dr, 0, "1.1", verCell);
+        setStyled(dr, 1, baseDate == null ? "" : baseDate.format(DOT), cellC);
+        setStyled(dr, 2, "최초 작성", cellC);
+        setStyled(dr, 3, "AI 자동 생성 (품질검토 결과 반영)", cellL);
+        setStyled(dr, 4, REVIEWER, cellC);
+        setStyled(dr, 5, "", cellC);
+
+        // 빈 양식행(향후 개정 기입용) — 그리드만
+        for (int r = 3; r <= 17; r++) {
+            Row er = sheet.createRow(r);
+            er.setHeightInPoints(24);
+            for (int c = 0; c < 6; c++) {
+                setStyled(er, c, "", cellC);
+            }
+        }
+
+        // 각주
+        setStyled(sheet.createRow(18), 0, "· 구분: 변경 내용이 이전 문서에 대해 최초작성/추가/수정/삭제 중 선택 기입", note);
+        setStyled(sheet.createRow(19), 0, "· 개정내용: 변경이 발생되는 위치와 변경 내용을 자세히 기록", note);
     }
 
     // ── 시정조치서 ─────────────────────────────────────────────────
@@ -417,6 +474,64 @@ public class ResultGeneratorImpl implements ResultGenerator {
         row.getCell(from).setCellValue(label);
     }
 
+    /** 병합 셀: 영역 전 셀에 스타일(테두리 렌더 보장), 첫 셀에 값. c2==c1 이면 병합 없이 단일 셀. */
+    private void mergedCell(Sheet sheet, int rowIdx, int c1, int c2, String value, CellStyle style) {
+        Row r = sheet.getRow(rowIdx);
+        if (r == null) {
+            r = sheet.createRow(rowIdx);
+        }
+        for (int c = c1; c <= c2; c++) {
+            r.createCell(c).setCellStyle(style);
+        }
+        r.getCell(c1).setCellValue(value == null ? "" : value);
+        if (c2 > c1) {
+            sheet.addMergedRegion(new CellRangeAddress(rowIdx, rowIdx, c1, c2));
+        }
+    }
+
+    /** 표지/개정이력 공통 셀 스타일 빌더. fontHex/fillHex/border 는 null 허용. */
+    private XSSFCellStyle coverStyle(XSSFWorkbook wb, double size, boolean bold, String fontHex,
+                                     String fillHex, HorizontalAlignment h, BorderStyle border) {
+        XSSFCellStyle s = wb.createCellStyle();
+        XSSFFont f = wb.createFont();
+        f.setBold(bold);
+        f.setFontHeightInPoints((short) size);
+        if (fontHex != null) {
+            f.setColor(hex(fontHex));
+        }
+        s.setFont(f);
+        if (fillHex != null) {
+            s.setFillForegroundColor(hex(fillHex));
+            s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+        s.setAlignment(h);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        s.setWrapText(true);
+        if (border != null) {
+            s.setBorderTop(border);
+            s.setBorderBottom(border);
+            s.setBorderLeft(border);
+            s.setBorderRight(border);
+        }
+        return s;
+    }
+
+    /** 특정 변(邊)만 테두리 지정(null=변경 없음). 이중선 등 부분 테두리용. */
+    private void setSides(XSSFCellStyle s, BorderStyle top, BorderStyle bottom, BorderStyle left, BorderStyle right) {
+        if (top != null) {
+            s.setBorderTop(top);
+        }
+        if (bottom != null) {
+            s.setBorderBottom(bottom);
+        }
+        if (left != null) {
+            s.setBorderLeft(left);
+        }
+        if (right != null) {
+            s.setBorderRight(right);
+        }
+    }
+
     private CellStyle groupHeaderStyle(XSSFWorkbook wb, String bgHex, String fgHex) {
         XSSFCellStyle s = wb.createCellStyle();
         s.setFillForegroundColor(hex(bgHex));
@@ -496,29 +611,6 @@ public class ResultGeneratorImpl implements ResultGenerator {
     }
 
     // (부적합 위치 문자열 매핑은 CorrectiveActionService.buildFromReview로 이동)
-
-    private void setString(Sheet sheet, int rowIdx, int colIdx, String value) {
-        Row row = sheet.getRow(rowIdx);
-        if (row == null) {
-            row = sheet.createRow(rowIdx);
-        }
-        row.createCell(colIdx).setCellValue(value == null ? "" : value);
-    }
-
-    /** 라벨(col4)·값(col6) 배치는 표지 PoC 레이아웃을 단순화해 라벨=col0, 값=col1로 기록. */
-    private void setLabelValue(Sheet sheet, int rowIdx, String label, String value) {
-        Row row = sheet.createRow(rowIdx);
-        row.createCell(0).setCellValue(label);
-        row.createCell(1).setCellValue(value == null ? "" : value);
-    }
-
-    private void setLabelValueStyled(Sheet sheet, int rowIdx, String label, String value, CellStyle valueStyle) {
-        Row row = sheet.createRow(rowIdx);
-        row.createCell(0).setCellValue(label);
-        Cell v = row.createCell(1);
-        v.setCellStyle(valueStyle);
-        v.setCellValue(value == null ? "" : value);
-    }
 
     private String nullToEmpty(String s) {
         return s == null ? "" : s;
