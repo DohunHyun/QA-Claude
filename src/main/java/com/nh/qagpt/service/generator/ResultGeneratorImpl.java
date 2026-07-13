@@ -10,15 +10,23 @@ import com.nh.qagpt.domain.enums.ArtifactType;
 import com.nh.qagpt.domain.enums.Severity;
 import com.nh.qagpt.repository.CorrectiveActionRepository;
 import com.nh.qagpt.service.CorrectiveActionService;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.Comment;
 import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.usermodel.Drawing;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
@@ -305,64 +313,171 @@ public class ResultGeneratorImpl implements ResultGenerator {
     }
 
     // ── 시정조치서 ─────────────────────────────────────────────────
+    // 화면 시정조치관리대장과 동일한 색 구획을 재현한다:
+    //   부적합사항=파랑(E9EEFC) · 시정조치 계획=주황(FDF1E4) · 시정조치 확인=초록(EAF6EE),
+    //   전 셀 테두리·컬럼헤더 볼드·본문 줄바꿈. (셀 값은 종전과 동일 → 기존 스키마 검증 유지)
     private void writeActionSheet(Workbook wb, List<CorrectiveAction> actions,
                                   String stageLabel, LocalDate baseDate) {
         Sheet sheet = wb.createSheet("시정조치서");
+        XSSFWorkbook xwb = (XSSFWorkbook) wb;
 
         int target = actions.size();
         int done = (int) actions.stream().filter(a -> a.getStatus() == ActionStatus.DONE).count();
         int remaining = target - done; // [spec §4.4] 완료건수 = 조치 상태(DONE) 실집계
 
+        CellStyle groupBlue = groupHeaderStyle(xwb, "E9EEFC", "284B8A");    // 부적합사항
+        CellStyle groupOrange = groupHeaderStyle(xwb, "FDF1E4", "8A5A1E");  // 시정조치 계획
+        CellStyle groupGreen = groupHeaderStyle(xwb, "EAF6EE", "1F7A43");   // 시정조치 확인
+        CellStyle colHeader = columnHeaderStyle(xwb);
+        CellStyle bodyCell = bodyStyle(xwb);
+        CellStyle labelCell = summaryLabelStyle(xwb);
+
         // r0: 요약행 (PoC 셀 위치 재현)
         Row summary = sheet.createRow(0);
-        summary.createCell(0).setCellValue("단계");
-        summary.createCell(1).setCellValue(stageLabel);
-        summary.createCell(2).setCellValue("시정조치대상건수");
-        summary.createCell(4).setCellValue(String.valueOf(target));
-        summary.createCell(6).setCellValue("시정조치완료건수");
-        summary.createCell(7).setCellValue(String.valueOf(done));
-        summary.createCell(10).setCellValue("시정조치잔여건수");
-        summary.createCell(11).setCellValue(String.valueOf(remaining));
-        summary.createCell(14).setCellValue("산출물기준일");
-        summary.createCell(15).setCellValue(baseDate == null ? "" : baseDate.format(DOT));
+        setStyled(summary, 0, "단계", labelCell);
+        setStyled(summary, 1, stageLabel, bodyCell);
+        setStyled(summary, 2, "시정조치대상건수", labelCell);
+        setStyled(summary, 4, String.valueOf(target), bodyCell);
+        setStyled(summary, 6, "시정조치완료건수", labelCell);
+        setStyled(summary, 7, String.valueOf(done), bodyCell);
+        setStyled(summary, 10, "시정조치잔여건수", labelCell);
+        setStyled(summary, 11, String.valueOf(remaining), bodyCell);
+        setStyled(summary, 14, "산출물기준일", labelCell);
+        setStyled(summary, 15, baseDate == null ? "" : baseDate.format(DOT), bodyCell);
 
-        // r1: 그룹헤더
+        // r1: 그룹헤더 — 색 구획 3개(병합)
         Row group = sheet.createRow(1);
-        group.createCell(0).setCellValue("부적합사항");
-        group.createCell(11).setCellValue("시정조치 계획");
-        group.createCell(15).setCellValue("시정조치 확인");
+        fillGroup(group, 0, 10, "부적합사항", groupBlue);
+        fillGroup(group, 11, 14, "시정조치 계획", groupOrange);
+        fillGroup(group, 15, 16, "시정조치 확인", groupGreen);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 10));
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 11, 14));
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 15, 16));
 
         // r2: 컬럼 헤더 (17)
         Row header = sheet.createRow(2);
+        header.setHeightInPoints(28);
         for (int c = 0; c < COLUMNS.length; c++) {
-            header.createCell(c).setCellValue(COLUMNS[c]);
+            setStyled(header, c, COLUMNS[c], colHeader);
         }
 
         // r3+: 데이터 — 영속 시정조치 라인(조치 계획/확인 상태 포함)
         int r = 3;
         for (CorrectiveAction a : actions) {
             Row row = sheet.createRow(r++);
-            row.createCell(0).setCellValue(nullToEmpty(a.getNo()));
-            row.createCell(1).setCellValue(nullToEmpty(a.getBusinessName()));
-            row.createCell(2).setCellValue("공통");
-            row.createCell(3).setCellValue(a.getReviewDate() == null ? "" : a.getReviewDate().format(SHORT));
-            row.createCell(4).setCellValue(nullToEmpty(a.getReviewer()));
-            row.createCell(5).setCellValue(nullToEmpty(a.getArtifactName()));
-            row.createCell(6).setCellValue(nullToEmpty(a.getFileName()));
-            row.createCell(7).setCellValue(nullToEmpty(a.getNonconformityLocation()));
-            row.createCell(8).setCellValue(a.getImprovementType() == null ? "" : a.getImprovementType().getLabel());
-            row.createCell(9).setCellValue(a.getDefectType() == null ? "" : a.getDefectType().getLabel());
-            row.createCell(10).setCellValue(nullToEmpty(a.getNonconformityContent()));
-            // 시정조치 계획(11~14)
-            row.createCell(11).setCellValue(nullToEmpty(a.getAssignee()));
-            row.createCell(12).setCellValue(nullToEmpty(a.getPlannedDate()));
-            row.createCell(13).setCellValue(a.getStatus() == ActionStatus.DONE && a.getConfirmedDate() != null
-                    ? a.getConfirmedDate().format(SHORT) : "");
-            row.createCell(14).setCellValue(nullToEmpty(a.getActionPlan()));
-            // 시정조치 확인(15~16)
-            row.createCell(15).setCellValue(nullToEmpty(a.getConfirmation()));
-            row.createCell(16).setCellValue(a.getConfirmedDate() == null ? "" : a.getConfirmedDate().format(SHORT));
+            String[] v = rowValues(a);
+            for (int c = 0; c < v.length; c++) {
+                setStyled(row, c, v[c], bodyCell);
+            }
         }
+
+        // 열 너비 — 화면 가독성 반영(문자 수 기준, 1문자≈256)
+        int[] widths = {8, 12, 7, 11, 12, 18, 34, 26, 10, 12, 42, 11, 11, 11, 26, 11, 11};
+        for (int c = 0; c < widths.length; c++) {
+            sheet.setColumnWidth(c, widths[c] * 256);
+        }
+    }
+
+    /** 시정조치서 데이터행 17열 값(종전 순서·서식 그대로). */
+    private String[] rowValues(CorrectiveAction a) {
+        return new String[] {
+                nullToEmpty(a.getNo()),
+                nullToEmpty(a.getBusinessName()),
+                "공통",
+                a.getReviewDate() == null ? "" : a.getReviewDate().format(SHORT),
+                nullToEmpty(a.getReviewer()),
+                nullToEmpty(a.getArtifactName()),
+                nullToEmpty(a.getFileName()),
+                nullToEmpty(a.getNonconformityLocation()),
+                a.getImprovementType() == null ? "" : a.getImprovementType().getLabel(),
+                a.getDefectType() == null ? "" : a.getDefectType().getLabel(),
+                nullToEmpty(a.getNonconformityContent()),
+                nullToEmpty(a.getAssignee()),                    // 시정조치 계획(11~14)
+                nullToEmpty(a.getPlannedDate()),
+                a.getStatus() == ActionStatus.DONE && a.getConfirmedDate() != null
+                        ? a.getConfirmedDate().format(SHORT) : "",
+                nullToEmpty(a.getActionPlan()),
+                nullToEmpty(a.getConfirmation()),                // 시정조치 확인(15~16)
+                a.getConfirmedDate() == null ? "" : a.getConfirmedDate().format(SHORT)
+        };
+    }
+
+    // ── 시정조치서 셀 스타일 (화면 색상 반영) ───────────────────────
+    private void setStyled(Row row, int col, String value, CellStyle style) {
+        Cell c = row.createCell(col);
+        c.setCellValue(value == null ? "" : value);
+        c.setCellStyle(style);
+    }
+
+    /** 병합 그룹 구획: 영역 전 셀에 배경·테두리 적용(외곽선 렌더 보장), 첫 셀에 라벨. */
+    private void fillGroup(Row row, int from, int to, String label, CellStyle style) {
+        for (int c = from; c <= to; c++) {
+            row.createCell(c).setCellStyle(style);
+        }
+        row.getCell(from).setCellValue(label);
+    }
+
+    private CellStyle groupHeaderStyle(XSSFWorkbook wb, String bgHex, String fgHex) {
+        XSSFCellStyle s = wb.createCellStyle();
+        s.setFillForegroundColor(hex(bgHex));
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont f = wb.createFont();
+        f.setBold(true);
+        f.setColor(hex(fgHex));
+        s.setFont(f);
+        s.setAlignment(HorizontalAlignment.CENTER);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        thinBorder(s);
+        return s;
+    }
+
+    private CellStyle columnHeaderStyle(XSSFWorkbook wb) {
+        XSSFCellStyle s = wb.createCellStyle();
+        s.setFillForegroundColor(hex("F2F5FB"));
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont f = wb.createFont();
+        f.setBold(true);
+        s.setFont(f);
+        s.setAlignment(HorizontalAlignment.CENTER);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        s.setWrapText(true);
+        thinBorder(s);
+        return s;
+    }
+
+    private CellStyle bodyStyle(XSSFWorkbook wb) {
+        XSSFCellStyle s = wb.createCellStyle();
+        s.setVerticalAlignment(VerticalAlignment.TOP);
+        s.setWrapText(true);
+        thinBorder(s);
+        return s;
+    }
+
+    private CellStyle summaryLabelStyle(XSSFWorkbook wb) {
+        XSSFCellStyle s = wb.createCellStyle();
+        s.setFillForegroundColor(hex("F2F5FB"));
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont f = wb.createFont();
+        f.setBold(true);
+        s.setFont(f);
+        s.setVerticalAlignment(VerticalAlignment.CENTER);
+        thinBorder(s);
+        return s;
+    }
+
+    private void thinBorder(XSSFCellStyle s) {
+        s.setBorderTop(BorderStyle.THIN);
+        s.setBorderBottom(BorderStyle.THIN);
+        s.setBorderLeft(BorderStyle.THIN);
+        s.setBorderRight(BorderStyle.THIN);
+    }
+
+    /** "RRGGBB" 16진수 → XSSFColor. */
+    private XSSFColor hex(String rgb) {
+        int r = Integer.parseInt(rgb.substring(0, 2), 16);
+        int g = Integer.parseInt(rgb.substring(2, 4), 16);
+        int b = Integer.parseInt(rgb.substring(4, 6), 16);
+        return new XSSFColor(new byte[] {(byte) r, (byte) g, (byte) b}, null);
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────
