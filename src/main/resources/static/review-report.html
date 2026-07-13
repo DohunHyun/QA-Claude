@@ -30,7 +30,9 @@
   <script>
     var M=window.MOCK, e=M.esc;
     var u=M.currentUser()||{};
-    var list=M.visibleProjects();
+    // 프로젝트 목록은 백엔드 /api/projects 단일 소스(목록·현황과 동일). 아래 loadProjects 콜백에서 채운다.
+    // (기존 목업 visibleProjects 는 화면마다 목록이 달라지는 원인이라 제거)
+    var list=[];
     var params=new URLSearchParams(location.search);
     // 단계 그룹 — 검토결과서는 분석/설계, 테스트/이행 2개 그룹으로 표기
     var STAGE_GROUPS = { '분석/설계':['분석','설계'], '테스트/이행':['테스트','이행'] };
@@ -85,19 +87,22 @@
       }
     });
 
-    if(!list.length){
-      document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
-      document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
-    } else {
-      document.getElementById('projSel').innerHTML=list.map(function(p){
-        return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
-      var pid=params.get('projectId');
-      var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
-      document.getElementById('projSel').value=String(sel.id);
-      render();
-      document.getElementById('projSel').addEventListener('change', render);
-      document.getElementById('stageSel').addEventListener('change', render);
-    }
+    M.loadProjects(function(loaded){
+      list=loaded;
+      if(!list.length){
+        document.getElementById('projSel').innerHTML='<option>담당 프로젝트 없음</option>';
+        document.getElementById('detail').innerHTML='<section class="panel"><div class="p-body muted" style="text-align:center;padding:30px">조회할 수 있는 프로젝트가 없습니다.</div></section>';
+      } else {
+        document.getElementById('projSel').innerHTML=list.map(function(p){
+          return '<option value="'+p.id+'">'+e(p.code)+' · '+e(p.name)+'</option>'; }).join('');
+        var pid=params.get('projectId');
+        var sel=list.filter(function(p){return String(p.id)===String(pid);})[0]||list[0];
+        document.getElementById('projSel').value=String(sel.id);
+        render();
+        document.getElementById('projSel').addEventListener('change', render);
+        document.getElementById('stageSel').addEventListener('change', render);
+      }
+    });
 
     function curProject(){
       var id=document.getElementById('projSel').value;
